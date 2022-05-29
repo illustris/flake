@@ -1,6 +1,9 @@
 { pkgs, ... }:
+with pkgs.lib;
 
-{
-	oss-cad-suite-bin = pkgs.callPackage ./oss-cad-suite-bin {};
-	vhd2vl = pkgs.callPackage ./vhd2vl {};
-}
+mapAttrs
+	(name: value:
+		(pkgs.callPackage (./. + "/${name}") {})
+	)
+	# attrset will contain an attr for each dir in pkgs
+	(filterAttrs (name: value: value == "directory") (builtins.readDir ./.))
