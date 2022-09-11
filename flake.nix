@@ -9,5 +9,7 @@
 		devShells.x86_64-linux.fpga = legacyPackages.mkShell { packages = with self.packages.x86_64-linux; [
 			oss-cad-suite-bin vhd2vl
 		];};
+
+		hydraJobs.example = self.packages;
 	};
 }
