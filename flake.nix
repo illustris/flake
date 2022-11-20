@@ -3,13 +3,31 @@
 		nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 	};
 
-	outputs = { self, nixpkgs }: let legacyPackages = import nixpkgs { system = "x86_64-linux"; }; in {
-		packages.x86_64-linux =  import pkgs/all_packages.nix { pkgs = legacyPackages; };
+	outputs = { self, nixpkgs }: let
+		lib = nixpkgs.lib // self.lib;
+	in with lib; {
+		lib = import ./lib {inherit (nixpkgs) lib;};
+		packages = genAttrs [
+			"x86_64-linux"
+			"aarch64-linux"
+			"riscv64-linux"
+		] (system: let
+			pkgs = import nixpkgs {
+				inherit system;
+				overlays = [
+					(self: super: {lib = super.lib // lib;})
+				];
+			};
+		in (import ./pkgs {inherit pkgs lib system;}));
 
-		devShells.x86_64-linux.fpga = legacyPackages.mkShell { packages = with self.packages.x86_64-linux; [
-			oss-cad-suite-bin vhd2vl
-		];};
-
-		hydraJobs.example = self.packages;
+		devShells = genAttrs [ "x86_64-linux" ] (system: let
+			pkgs = import nixpkgs {inherit system;};
+		in {
+			fpga = pkgs.mkShell {
+				packages = with self.packages.${system}; [
+					oss-cad-suite-bin vhd2vl
+				];
+			};
+		});
 	};
 }

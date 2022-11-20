@@ -1,5 +1,9 @@
-{ pkgs, ... }:
+{ pkgsStatic, stdenv, lib, btop, ... }:
 
-pkgs.btop.override{
-	stdenv = pkgs.pkgsStatic.stdenv;
+(btop.overrideAttrs (old: {
+	meta = old.meta // { platforms = [
+		"x86_64-linux"
+	]; };
+})).override{
+	stdenv = pkgsStatic.stdenv;
 }

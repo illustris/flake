@@ -1,4 +1,4 @@
-{ stdenv, pkgs, lib, fetchFromGitHub, ... }:
+{ stdenv, lib, fetchFromGitHub, flex, bison, verilog, ... }:
 with lib;
 stdenv.mkDerivation rec {
 	name = "vnd2vl";
@@ -12,7 +12,7 @@ stdenv.mkDerivation rec {
 		hash = "sha256-Fmlnts7Oei2ApO+ocObA277/C/HQqpEYkmgkQuMVap8=";
 	};
 
-	buildInputs = with pkgs; [ flex bison verilog ];
+	buildInputs = [ flex bison verilog ];
 
 	patchPhase = ''
 		substituteInPlace translated_examples/test.v \
@@ -26,4 +26,8 @@ stdenv.mkDerivation rec {
 		mkdir -p $out/bin
 		mv src/vhd2vl $out/bin/
 	'';
+	meta = {
+		# TODO: fix on aarch64
+		platforms = [ "x86_64-linux" ];
+	};
 }

@@ -1,6 +1,6 @@
-{ pkgs, lib, openvpn, expect, ... }:
+{ writeScriptBin, lib, openvpn, expect, ... }:
 
-pkgs.writeScriptBin "vpnpass" (
+writeScriptBin "vpnpass" (
 	lib.replaceStrings
 		[ "/usr/bin/env expect" "openvpn" ]
 		[ "${expect}/bin/expect" "${openvpn}/bin/openvpn" ]
