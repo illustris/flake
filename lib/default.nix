@@ -1,6 +1,7 @@
 { lib, ... }:
 with lib;
 rec {
+	inherit (builtins) removeAttrs;
 	# Tired of nix's annoying two-space indent restriction on multiline strings?
 	# This function removes extra indentation from multiline strings.
 	# Example:
@@ -20,6 +21,35 @@ rec {
 			map (line: substring (1 + stringLength (last lines)) (stringLength line) line) lines
 		)
 	);
+
+	# Takes an attrset of colmena targets
+	# Returns an attrset of nixosConfigurations
+	colmenaToNixos = colmena: mapAttrs
+		(n: module: let
+			nixpkgs = module.nixpkgs
+				or colmena.nodeNixpkgs.${n}
+				or colmena.meta.nixpkgs;
+		in (import "${nixpkgs.path}/nixos/lib/eval-config.nix" {
+			inherit (nixpkgs) system;
+			modules = [
+				module
+				# stop errors about "deployment" not existing
+				{options.deployment = mkOption {type = types.attrs;};}
+			];
+		})
+		) (removeAttrs colmena [ "meta" ]);
+
+	# Get toplevel for each attr in nixosConfigurations
+	nixosToDrv = mapAttrs (_: v: v.config.system.build.toplevel);
+
+	# Returns the same as the above function, with the an additional "all" attribute
+	# useful for easily building all colmena targets with nix build
+	# nix build .#systems.all
+	nixosToDrv' = configs: let attrs = nixosToDrv configs; in {
+		all = nixpkgs.legacyPackages.x86_64-linux.linkFarm
+			"all-targets"
+			(mapAttrsToList (name: path: {inherit name path;}) attrs);
+	} // attrs;
 
 	# Useful functions for generating scripts.
 	# Beware: because these are doing simple string substitution to generate shell scripts
