@@ -20,3 +20,7 @@ jobs:
 
       - name: flake check
         run: nix flake check
+      - name: flake metadata
+        run: nix flake metadata
+      - name: flake show
+        run: nix flake show
