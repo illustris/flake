@@ -1,7 +1,6 @@
 { lib, ... }:
 with lib;
 rec {
-	inherit (builtins) removeAttrs;
 	# Tired of nix's annoying two-space indent restriction on multiline strings?
 	# This function removes extra indentation from multiline strings.
 	# Example:
@@ -104,7 +103,7 @@ rec {
 		runOnAll = { parallel ? 5, user ? "root" }: nodes: c: mkPipe [
 			"echo ${concatStringsSep " " nodes}"
 			"tr ' ' '\\n'"
-			"xargs -I{} -P${builtins.toString parallel} ${runOn {inherit user;} "{}" c}"
+			"xargs -I{} -P${toString parallel} ${runOn {inherit user;} "{}" c}"
 		];
 		# alias to avoid frequent use of "runOnAll {}"
 		runRootOnAll = runOnAll {};
