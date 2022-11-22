@@ -28,6 +28,20 @@
 					oss-cad-suite-bin vhd2vl
 				];
 			};
+			ctf = pkgs.mkShell {
+				shellHook = indent ''
+					export PS1='>'$PS1
+					export _JAVA_AWT_WM_NONREPARENTING=1
+				'';
+				packages = with pkgs; with python3Packages; [
+					angr
+					bintools-unwrapped
+					ghidra
+					pwntools
+					radare2
+					ropper
+				];
+			};
 		});
 	};
 }
