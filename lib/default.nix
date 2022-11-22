@@ -45,7 +45,7 @@ rec {
 	# useful for easily building all colmena targets with nix build
 	# nix build .#systems.all
 	nixosToDrv' = configs: let attrs = nixosToDrv configs; in {
-		all = nixpkgs.legacyPackages.x86_64-linux.linkFarm
+		all = (head (attrValues configs)).pkgs.linkFarm
 			"all-targets"
 			(mapAttrsToList (name: path: {inherit name path;}) attrs);
 	} // attrs;
