@@ -1,6 +1,19 @@
 { lib, ... }:
 with lib;
 rec {
+	# Ternary operator
+	# Exaample:
+	# tern false 1 2 => 2
+	# tern true 1 2 => 1
+	tern = pred: x: y: if pred then x else y;
+
+	# Right-associate and chain following single-operand functions
+	# Example:
+	# right f g h 1 => f(g(h(1)))
+	right = f: g: tern (isFunction g)
+		(right (x: f(g(x))))
+		(f(g));
+
 	# Tired of nix's annoying two-space indent restriction on multiline strings?
 	# This function removes extra indentation from multiline strings.
 	# Example:
@@ -15,11 +28,17 @@ rec {
 		lines = splitString "\n" txt;
 	in (
 		# unexpected chars in last line of multiline string
-		assert ((replaceChars ["\t"] [""] (last lines)) == "");
+		assert ( right (replaceChars ["\t"] [""]) last lines  == "");
 		concatStringsSep "\n" (
-			map (line: substring (1 + stringLength (last lines)) (stringLength line) line) lines
+			map (line: substring (1 + right stringLength last lines) (stringLength line) line) lines
 		)
 	);
+
+	ti = ''
+		hello:
+			hi
+		ollo
+	'';
 
 	# Takes an attrset of colmena targets
 	# Returns an attrset of nixosConfigurations
@@ -78,10 +97,11 @@ rec {
 		# => "nix shell nixpkgs#hello nixpkgs#cowsay -c sh -c 'hello | cowsay'"
 		nixShell = packages: cmd: concatStringsSep " " [
 			"nix shell"
-			(concatStringsSep " " (map (x: concatStringsSep "#" (
-				(optionals (!(hasInfix "#" x)) ["nixpkgs"])
-				++ [x]
-			)) packages))
+			( right
+				(concatStringsSep " ")
+				(map (x: tern (hasInfix "#" x) "" "nixpkgs#" + x))
+				packages
+			)
 			"-c sh -c ${escapeShellArg cmd}"
 		];
 		# Run a command on a given machine as a given user.
@@ -117,6 +137,6 @@ rec {
 		#   "while true; do nc -z 1.1.1.1 22 && break; sleep 5; done"
 		#   "while true; do nc -z 1.1.1.1 53 && break; sleep 5; done"
 		# ]
-		waitForPorts = n: (map (waitForPort n));
+		waitForPorts = right map waitForPort;
 	};
 }
