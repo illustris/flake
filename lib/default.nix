@@ -139,4 +139,9 @@ rec {
 		# ]
 		waitForPorts = right map waitForPort;
 	};
+
+	# Takes a path and returns the list of names of non-hidden directories there
+	# Example:
+	# dirs ../pkgs => [ "btop-static" "oss-cad-suite-bin" "vhd2vl" "vpnpass" ]
+	dirs = right attrNames (filterAttrs (n: v: v == "directory" && !hasPrefix "." n)) builtins.readDir;
 }
