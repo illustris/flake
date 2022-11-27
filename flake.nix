@@ -43,5 +43,10 @@
 				];
 			};
 		});
+
+		templates = genAttrs (dirs ./templates) ( name: {
+			description = name;
+			path = ./templates + "/${name}";
+		});
 	};
 }
