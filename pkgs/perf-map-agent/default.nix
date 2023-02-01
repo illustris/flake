@@ -34,6 +34,6 @@ stdenv.mkDerivation rec {
 		homepage = "https://github.com/jvm-profiling-tools/perf-map-agent";
 		license = licenses.gpl2;
 		maintainers = with maintainers; [ illustris ];
-		platforms = platforms.linux;
+		platforms = [ "x86_64-linux" "aarch64-linux" ];
 	};
 }
