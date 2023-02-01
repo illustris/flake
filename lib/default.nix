@@ -34,12 +34,6 @@ rec {
 		)
 	);
 
-	ti = ''
-		hello:
-			hi
-		ollo
-	'';
-
 	# Takes an attrset of colmena targets
 	# Returns an attrset of nixosConfigurations
 	colmenaToNixos = colmena: mapAttrs
