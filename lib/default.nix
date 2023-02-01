@@ -144,4 +144,48 @@ rec {
 	# Example:
 	# dirs ../pkgs => [ "btop-static" "oss-cad-suite-bin" "vhd2vl" "vpnpass" ]
 	dirs = right attrNames (filterAttrs (n: v: v == "directory" && !hasPrefix "." n)) builtins.readDir;
+
+	# Takes a prefix, a list of targets, and a generator function; returns an attrset of targets
+	# The generator function must accept an attrset of kwargs forwarded from mapCluster, an index,
+	# and one element of the "targets" list
+	#
+	# Example generator function:
+	# gen = args: n: target: {
+	# 	imports = [ ./common ];
+	# 	deployment.targetHost = target;
+	# }
+	#
+	# An optional "nameFunction" attribute can be passed. It must accept the same arguments as the
+	# generator function, and return the name of the node as a string
+	#
+	# Example usage:
+	# mapCluster {
+	# 	prefix = "test";
+	# 	targets = ipRange [1 2 3 4] 2;
+	# 	nameFunction = _: n: _: "${prefix}-${tern (mod n 2 == 0) "even" "odd"}-${toString n}"
+	# } gen # gen defined above
+	# =>
+	# {
+	# 	test-odd-1 = {
+	# 		imports = [ ./common ];
+	# 		deployment.targetHost = "1.2.3.4";
+	# 	};
+	# 	test-even-2 = {
+	# 		imports = [ ./common ];
+	# 		deployment.targetHost = "1.2.3.5";
+	# 	};
+	# }
+	mapCluster = {
+		prefix,
+		nameFunction ? (args: n: target: "${args.prefix}-${builtins.toString n}"),
+		targets,
+		...
+	}@args: generator:
+		listToAttrs ( imap1
+			(n: target: nameValuePair
+				(nameFunction args n target)
+				(generator args n target)
+			)
+			targets
+		);
 }
