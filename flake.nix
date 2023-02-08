@@ -26,6 +26,7 @@
 				path = [ self.packages.${pkgs.system}.pinephoneKeyboard ];
 				wantedBy = [ "multi-user.target" ];
 				script = "ppkb-i2c-inputd";
+				serviceConfig.StandardOutput = "null";
 			};
 		});
 
