@@ -20,6 +20,15 @@
 			};
 		in (import ./pkgs {inherit pkgs lib system;}));
 
+		nixosModules.pinephoneKeyboard = ({ lib, pkgs, ... }: {
+			options.services.pinephoneKeyboard.enable = lib.mkEnableOption "Pinephone Keyboard userspace driver";
+			config.systemd.services.pinephoneKeyboard = {
+				path = [ self.packages.${pkgs.system}.pinephoneKeyboard ];
+				wantedBy = [ "multi-user.target" ];
+				script = "ppkb-i2c-inputd";
+			};
+		});
+
 		devShells = genAttrs [ "x86_64-linux" ] (system: let
 			pkgs = import nixpkgs {inherit system;};
 		in {
