@@ -28,7 +28,7 @@ rec {
 		lines = splitString "\n" txt;
 	in (
 		# unexpected chars in last line of multiline string
-		assert ( right (replaceChars ["\t"] [""]) last lines  == "");
+		assert ( right (replaceStrings ["\t"] [""]) last lines  == "");
 		concatStringsSep "\n" (
 			map (line: substring (1 + right stringLength last lines) (stringLength line) line) lines
 		)
