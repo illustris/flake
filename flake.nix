@@ -30,6 +30,8 @@
 			};
 		});
 
+		overlays.default = final: prev: { illustris = self.packages.${prev.system}; };
+
 		devShells = genAttrs [ "x86_64-linux" ] (system: let
 			pkgs = import nixpkgs {inherit system;};
 		in {
