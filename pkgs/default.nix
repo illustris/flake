@@ -1,5 +1,5 @@
-{ pkgs, lib, system, ... }:
-with lib;
+{ pkgs, system, ... }:
+with pkgs.lib;
 
 filterAttrs (_: isDerivation) (genAttrs (dirs ./.) (name: (
 	# replace drvs for unsupported archs with null

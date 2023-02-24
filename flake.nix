@@ -3,9 +3,7 @@
 		nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 	};
 
-	outputs = { self, nixpkgs }: let
-		lib = nixpkgs.lib // self.lib;
-	in with lib; {
+	outputs = { self, nixpkgs }: with nixpkgs.lib; with self.lib; {
 		lib = import ./lib {inherit (nixpkgs) lib;};
 		packages = genAttrs [
 			"x86_64-linux"
@@ -14,11 +12,9 @@
 		] (system: let
 			pkgs = import nixpkgs {
 				inherit system;
-				overlays = [
-					(self: super: {lib = super.lib // lib;})
-				];
+				overlays = [ self.overlays.default ];
 			};
-		in (import ./pkgs {inherit pkgs lib system;}));
+		in (import ./pkgs {inherit pkgs system;}));
 
 		nixosModules.pinephoneKeyboard = ({ lib, pkgs, ... }: {
 			options.services.pinephoneKeyboard.enable = lib.mkEnableOption "Pinephone Keyboard userspace driver";
@@ -30,7 +26,10 @@
 			};
 		});
 
-		overlays.default = final: prev: { illustris = self.packages.${prev.system}; };
+		overlays.default = final: prev: {
+			illustris = self.packages.${prev.system};
+			lib = prev.lib // self.lib;
+		};
 
 		devShells = genAttrs [ "x86_64-linux" ] (system: let
 			pkgs = import nixpkgs {inherit system;};
