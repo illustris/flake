@@ -3,28 +3,25 @@
 		nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 	};
 
-	outputs = { self, nixpkgs }: with nixpkgs.lib; with self.lib; {
+	outputs = { self, nixpkgs }: with nixpkgs.lib; with self.lib; let
+		pkgsForSystem = system: import nixpkgs {
+			inherit system;
+			overlays = [ self.overlays.default ];
+		};
+	in {
 		lib = import ./lib {inherit (nixpkgs) lib;};
 		packages = genAttrs [
 			"x86_64-linux"
 			"aarch64-linux"
 			"riscv64-linux"
 		] (system: let
-			pkgs = import nixpkgs {
-				inherit system;
-				overlays = [ self.overlays.default ];
-			};
+			pkgs = pkgsForSystem system;
 		in (import ./pkgs {inherit pkgs system;}));
 
-		nixosModules.pinephoneKeyboard = ({ lib, pkgs, ... }: {
-			options.services.pinephoneKeyboard.enable = lib.mkEnableOption "Pinephone Keyboard userspace driver";
-			config.systemd.services.pinephoneKeyboard = {
-				path = [ self.packages.${pkgs.system}.pinephoneKeyboard ];
-				wantedBy = [ "multi-user.target" ];
-				script = "ppkb-i2c-inputd";
-				serviceConfig.StandardOutput = "null";
-			};
-		});
+		nixosModules = import ./modules {
+			lib = nixpkgs.lib // self.lib;
+			inherit self;
+		};
 
 		overlays.default = final: prev: {
 			illustris = self.packages.${prev.system};
@@ -32,7 +29,7 @@
 		};
 
 		devShells = genAttrs [ "x86_64-linux" ] (system: let
-			pkgs = import nixpkgs {inherit system;};
+			pkgs = pkgsForSystem system;
 		in {
 			fpga = pkgs.mkShell {
 				packages = with self.packages.${system}; [
