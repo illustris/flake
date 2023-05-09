@@ -1,9 +1,13 @@
 {
 	inputs = {
 		nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+		home-manager = {
+			url = "github:nix-community/home-manager";
+			inputs.nixpkgs.follows = "nixpkgs";
+		};
 	};
 
-	outputs = { self, nixpkgs }: with nixpkgs.lib; with self.lib; let
+	outputs = { self, nixpkgs, ... }: with nixpkgs.lib; with self.lib; let
 		pkgsForSystem = system: import nixpkgs {
 			inherit system;
 			overlays = [ self.overlays.default ];
@@ -51,6 +55,11 @@
 				];
 			};
 		});
+
+		homeConfigurations = rec {
+			default = illustris;
+			illustris = import ./homeConfigurations/illustris self;
+		};
 
 		templates = genAttrs (dirs ./templates) ( name: {
 			description = name;
