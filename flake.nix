@@ -7,7 +7,7 @@
 		};
 	};
 
-	outputs = { self, nixpkgs, ... }: with nixpkgs.lib; with self.lib; let
+	outputs = { self, nixpkgs, home-manager, ... }: with nixpkgs.lib; with self.lib; let
 		pkgsForSystem = system: import nixpkgs {
 			inherit system;
 			overlays = [ self.overlays.default ];
@@ -57,8 +57,19 @@
 		});
 
 		homeConfigurations = rec {
-			default = illustris;
-			illustris = import ./homeConfigurations/illustris self;
+			default = dailyDriver;
+			dailyDriver = import ./homeConfigurations/profiles/dailyDriver self;
+			emacs = home-manager.lib.homeManagerConfiguration {
+				pkgs = nixpkgs.legacyPackages.x86_64-linux;
+				home = {
+					homeDirectory = "/home/illustris";
+					stateVersion = "23.05";
+					username = "illustris";
+				};
+				imports = [
+					../../modules/emacs
+				];
+			};
 		};
 
 		templates = genAttrs (dirs ./templates) ( name: {
