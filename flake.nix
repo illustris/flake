@@ -10,7 +10,7 @@
 	outputs = { self, nixpkgs, home-manager, ... }: with nixpkgs.lib; with self.lib; let
 		pkgsForSystem = system: import nixpkgs {
 			inherit system;
-			overlays = [ self.overlays.default ];
+			overlays = with self.overlays; [ lib pkgs ];
 		};
 	in {
 		lib = import ./lib {inherit (nixpkgs) lib;};
@@ -27,10 +27,9 @@
 			inherit self;
 		};
 
-		overlays.default = final: prev: {
-			illustris = self.packages.${prev.system};
-			lib = prev.lib // self.lib;
-		};
+		overlays = genAttrs (dirs ./overlays) (name:
+			import ./overlays/${name} self
+		);
 
 		devShells = genAttrs [ "x86_64-linux" ] (system: let
 			pkgs = pkgsForSystem system;
