@@ -60,25 +60,13 @@
 			};
 		});
 
-		homeConfigurations = rec {
-			default = dailyDriver;
-			dailyDriver = import ./homeConfigurations/profiles/dailyDriver self;
-			emacs = home-manager.lib.homeManagerConfiguration {
-				pkgs = nixpkgs.legacyPackages.x86_64-linux;
-				home = {
-					homeDirectory = "/home/illustris";
-					stateVersion = "23.05";
-					username = "illustris";
-				};
-				imports = [
-					../../modules/emacs
-				];
-			};
-		};
+		homeConfigurations = genAttrs (dirs ./homeConfigurations/profiles) (name:
+			import ./homeConfigurations/profiles/${name} self
+		);
 
 		templates = genAttrs (dirs ./templates) ( name: {
 			description = name;
-			path = ./templates + "/${name}";
+			path = ./templates/${name};
 		});
 	};
 }

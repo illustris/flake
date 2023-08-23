@@ -7,7 +7,7 @@
 				recursive = true;
 			};
 			homeDirectory = lib.mkDefault "/home/${config.home.username}";
-			stateVersion = "23.05";
+			stateVersion = lib.mkDefault "23.05";
 			username = lib.mkDefault "illustris";
 		};
 		programs.emacs = {
