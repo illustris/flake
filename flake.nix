@@ -36,8 +36,12 @@
 			pkgs = pkgsForSystem system;
 		in {
 			fpga = pkgs.mkShell {
-				packages = with self.packages.${system}; [
+				packages = with self.packages.${system}; with pkgs; [
 					oss-cad-suite-bin vhd2vl
+					yosys
+					nextpnrWithGui
+					icestorm
+					dfu-util
 				];
 			};
 			ctf = pkgs.mkShell {
