@@ -6,12 +6,13 @@ import XMonad.Util.EZConfig -- This library provides the functions for managing 
 import XMonad.Layout.GridVariants
 import XMonad.Layout.Tabbed
 
+import XMonad.Hooks.EwmhDesktops (ewmh)
 import qualified XMonad.StackSet as W
 
-main = xmonad $ kdeConfig
+main = xmonad $ ewmh $ kdeConfig
        { modMask = mod4Mask -- Use Super instead of Alt
        , terminal = "st"
-       , manageHook = manageDocks <+> manageHook kdeConfig
+       , manageHook = (className =? "plasmashell" <&&> title =? "Plasma" --> doFloat) <+> manageDocks <+> manageHook kdeConfig
        , layoutHook = avoidStruts (Grid (16/10) ||| simpleTabbed ||| layoutHook kdeConfig)
        , normalBorderColor  = "#808080" -- grey
        , focusedBorderColor = "#00ccff" -- blue
