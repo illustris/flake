@@ -9,6 +9,14 @@ import XMonad.Layout.Tabbed
 import XMonad.Hooks.EwmhDesktops (ewmh)
 import qualified XMonad.StackSet as W
 
+import qualified Data.Map as M
+
+toggleFull = withFocused (\windowId -> do
+    { floats <- gets (W.floating . windowset);
+        if windowId `M.member` floats
+        then withFocused $ windows . W.sink
+        else withFocused $ windows . (flip W.float $ W.RationalRect 0 0 1 1) })
+
 main = xmonad $ ewmh $ kdeConfig
        { modMask = mod4Mask -- Use Super instead of Alt
        , terminal = "st"
@@ -32,4 +40,5 @@ main = xmonad $ ewmh $ kdeConfig
        , ((mod4Mask, xK_m), sendMessage $ JumpToLayout "Full")
        , ((mod4Mask, xK_g), sendMessage $ JumpToLayout "Grid")
        , ((mod4Mask, xK_t), sendMessage $ JumpToLayout "Tabbed Simplest")
+       , ((mod4Mask, xK_f), toggleFull)
        ]
