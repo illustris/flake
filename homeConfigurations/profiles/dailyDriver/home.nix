@@ -7,5 +7,6 @@
 	imports = [
 		../../modules/emacs
 		../../modules/gpg-agent
+		../../modules/chromium
 	];
 }
