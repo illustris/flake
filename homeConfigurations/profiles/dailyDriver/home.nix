@@ -1,6 +1,7 @@
-{ ... }: {
+{ pkgs, ... }: {
 	home = {
 		homeDirectory = "/home/illustris";
+		packages = with pkgs.illustris; [ vpnpass fzpass ];
 		stateVersion = "23.05";
 		username = "illustris";
 	};
