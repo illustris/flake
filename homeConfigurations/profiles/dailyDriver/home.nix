@@ -5,8 +5,12 @@
 		username = "illustris";
 	};
 	imports = [
-		../../modules/emacs
-		../../modules/gpg-agent
 		../../modules/chromium
+		../../modules/dailyDriverUtils
+		../../modules/emacs
+		../../modules/git
+		../../modules/gpg-agent
+		../../modules/pass
+		../../modules/serverUtils
 	];
 }
