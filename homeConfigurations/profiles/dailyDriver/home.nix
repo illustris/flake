@@ -6,6 +6,7 @@
 		username = "illustris";
 	};
 	imports = [
+		../../modules/bash
 		../../modules/chromium
 		../../modules/dailyDriverUtils
 		../../modules/emacs
