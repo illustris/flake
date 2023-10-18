@@ -67,5 +67,13 @@
 			description = name;
 			path = ./templates/${name};
 		});
+
+		bundlers = genAttrs [
+			"x86_64-linux"
+			"aarch64-linux"
+			"riscv64-linux"
+		] (system: let
+			pkgs = pkgsForSystem system;
+		in import ./bundlers { inherit self pkgs; });
 	};
 }
