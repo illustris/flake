@@ -29,6 +29,7 @@
 			nix-mode
 			puppet-mode
 			python-mode
+			rust-mode
 			strace-mode
 			verilog-mode
 			yaml-mode
