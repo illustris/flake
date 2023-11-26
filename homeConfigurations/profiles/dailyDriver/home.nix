@@ -1,3 +1,4 @@
+{...}@inputs:
 { pkgs, ... }: {
 	home = {
 		homeDirectory = "/home/illustris";
@@ -10,6 +11,7 @@
 		../../modules/chromium
 		../../modules/dailyDriverUtils
 		../../modules/emacs
+		(import ../../modules/firefox inputs)
 		../../modules/git
 		../../modules/gpg-agent
 		../../modules/pass

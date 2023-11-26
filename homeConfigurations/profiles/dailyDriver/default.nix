@@ -6,6 +6,6 @@ inputs.home-manager.lib.homeManagerConfiguration {
 		overlays = inputs.nixpkgs.lib.attrValues overlays;
 	};
 	modules = [
-		./home.nix
+		(import ./home.nix inputs)
 	];
 }
