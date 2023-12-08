@@ -32,9 +32,6 @@
 			};
 			profiles.default = {
 				isDefault = true;
-				settings = {
-					"browser.startup.homepage" = "https://nixos.org";
-				};
 				extensions = with firefox-addons.outputs.packages.${pkgs.system}; [
 					browserpass
 					clearurls
