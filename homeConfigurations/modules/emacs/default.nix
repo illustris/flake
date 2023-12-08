@@ -33,6 +33,7 @@
 			strace-mode
 			verilog-mode
 			yaml-mode
+			zig-mode
 		]));
 	};
 }
