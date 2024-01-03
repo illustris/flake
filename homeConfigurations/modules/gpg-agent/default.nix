@@ -10,5 +10,6 @@
 		enable = true;
 		extraConfig = "auto-expand-secmem";
 		enableSshSupport = true;
+		pinentryFlavor = "qt";
 	};
 }
