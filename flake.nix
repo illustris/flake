@@ -78,6 +78,6 @@
 			"riscv64-linux"
 		] (system: let
 			pkgs = pkgsForSystem system;
-		in import ./bundlers { inherit self pkgs; });
+		in import ./bundlers { inherit pkgs; });
 	};
 }

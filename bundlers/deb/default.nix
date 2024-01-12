@@ -1,4 +1,4 @@
-{ self, pkgs }:
+{ pkgs, ... }:
 with pkgs.lib;
 
 # inspired by (i.e. stolen from) github:juliosueiras-nix/nix-utils
