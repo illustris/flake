@@ -37,7 +37,6 @@
 					clearurls
 					multi-account-containers
 					ublock-origin
-					tree-style-tab
 				];
 				containers = {
 					personal = {
