@@ -14,6 +14,7 @@
 		(import ../../modules/firefox inputs)
 		../../modules/git
 		../../modules/gpg-agent
+		../../modules/hyprland
 		../../modules/pass
 		../../modules/serverUtils
 	];
