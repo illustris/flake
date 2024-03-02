@@ -18,8 +18,8 @@ stdenv.mkDerivation rec {
 	preFixup = ''
 		for n in $(find $out/bin -type f -executable); do
 			wrapProgram "$n" \
-				--prefix JAVA_HOME : ${jdk.home} \
-				--prefix FLAMEGRAPH_DIR : ${flamegraph}/bin
+				--set-default JAVA_HOME ${jdk.home} \
+				--set-default FLAMEGRAPH_DIR ${flamegraph}/bin
 		done
 	'';
 
