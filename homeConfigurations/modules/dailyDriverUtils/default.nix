@@ -3,6 +3,7 @@
 {
 	home.packages = with pkgs; [
 		flamegraph
+		ncdu
 		nix-diff
 		nix-index
 		nmap
