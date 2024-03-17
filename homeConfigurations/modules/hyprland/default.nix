@@ -1,5 +1,8 @@
 { pkgs, config, lib, ... }:
 {
+	home.packages = with pkgs; [
+		wl-clipboard
+	];
 	wayland.windowManager.hyprland = {
 		enable = true;
 		settings = {
