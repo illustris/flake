@@ -1,4 +1,4 @@
-{ ... }: {
+{ pkgs, ... }: {
 	programs = {
 		# this is required for HM to set GPG and SSH agent env vars
 		bash.enable = true;
@@ -10,5 +10,6 @@
 		enable = true;
 		extraConfig = "auto-expand-secmem";
 		enableSshSupport = true;
+		pinentryPackage = pkgs.pinentry-qt;
 	};
 }
