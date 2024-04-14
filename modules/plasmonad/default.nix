@@ -7,19 +7,21 @@ with lib;
 		picom # autostarts through xdg
 		st
 	];
-	services.xserver = {
-		enable = true;
+	services = {
+		xserver = {
+			enable = true;
+			desktopManager.plasma5.enable = true;
+			windowManager = {
+				xmonad = {
+					enable = true;
+					enableContribAndExtras = true;
+					config = builtins.readFile ./config.hs;
+				};
+			};
+		};
 		displayManager = {
 			defaultSession = "plasma";
 			sddm.enable = true;
-		};
-		desktopManager.plasma5.enable = true;
-		windowManager = {
-			xmonad = {
-				enable = true;
-				enableContribAndExtras = true;
-				config = builtins.readFile ./config.hs;
-			};
 		};
 	};
 
