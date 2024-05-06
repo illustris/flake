@@ -15,7 +15,7 @@ rec {
 		(f(g));
 
 	# Tired of nix's annoying two-space indent restriction on multiline strings?
-	# This function removes extra indentation from multiline strings.
+	# This function removes extra indentation from tab-indented multiline strings.
 	# Example:
 	# y = {
 	# 	x = indent ''
@@ -26,12 +26,17 @@ rec {
 	# y.x => "for x in l:\n\tprint(x)\n"
 	indent = txt: let
 		lines = splitString "\n" txt;
-	in (
-		# unexpected chars in last line of multiline string
-		assert ( right (replaceStrings ["\t"] [""]) last lines  == "");
-		concatStringsSep "\n" (
-			map (line: substring (1 + right stringLength last lines) (stringLength line) line) lines
-		)
+		# if the last line has n tabs, n+1 tabs need to be dropped from previous lines
+		pivot = 1 + right stringLength last lines;
+	in concatStringsSep "\n" (
+		map (
+			line: let
+				rightStr = substring pivot (stringLength line) line;
+				leftStr = substring 0 pivot line;
+				# Check for non-tab characters in the truncated section
+				# If you hit the following assert, check your indentation
+			in assert (replaceStrings ["\t"] [""] leftStr == ""); rightStr
+		) lines
 	);
 
 	# Takes an attrset of colmena targets
