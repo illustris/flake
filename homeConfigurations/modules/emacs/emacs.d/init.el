@@ -44,3 +44,6 @@
 	)
 )
 
+(add-hook 'sh-mode-hook
+	(lambda ()
+		(setq sh-basic-offset 8 indent-tabs-mode t)))
