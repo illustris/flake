@@ -14,6 +14,7 @@
 		extraPackages = (epkgs: (with epkgs; [
 			bpftrace-mode
 			cmake-mode
+			csv-mode
 			color-theme-modern
 			docker-compose-mode
 			dockerfile-mode
