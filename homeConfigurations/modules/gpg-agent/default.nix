@@ -10,6 +10,6 @@
 		enable = true;
 		extraConfig = "auto-expand-secmem";
 		enableSshSupport = true;
-		pinentryPackage = pkgs.pinentry-qt;
+		pinentryPackage = pkgs.pinentry-all;
 	};
 }
