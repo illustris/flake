@@ -52,7 +52,7 @@
 					export PS1='>'$PS1
 					export _JAVA_AWT_WM_NONREPARENTING=1
 				'';
-				packages = with pkgs; with python311Packages; [
+				packages = with pkgs; with python3Packages; [
 					angr
 					bintools-unwrapped
 					ghidra
