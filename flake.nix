@@ -52,14 +52,13 @@
 					export PS1='>'$PS1
 					export _JAVA_AWT_WM_NONREPARENTING=1
 				'';
-				packages = with pkgs; with python3Packages; [
-					angr
+				packages = with pkgs; with python3Packages; ([
 					bintools-unwrapped
 					ghidra
 					pwntools
 					radare2
 					ropper
-				];
+				] ++ optionals (!angr.meta.broken) [ angr ]);
 			};
 		});
 
