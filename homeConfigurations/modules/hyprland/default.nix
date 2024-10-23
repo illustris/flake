@@ -62,7 +62,7 @@
 				"GDK_SCALE,2"
 				"NIXOS_OZONE_WL,1"
 				"QT_QPA_PLATFORM,wayland"
-				"QT_QPA_PLATFORMTHEME,${pkgs.qt5ct}/bin/qt5ct"
+				"QT_QPA_PLATFORMTHEME,${pkgs.qt6ct}/bin/qt6ct"
 				"WLR_NO_HARDWARE_CURSORS,1"
 				"XCURSOR_SIZE,32"
 			];
