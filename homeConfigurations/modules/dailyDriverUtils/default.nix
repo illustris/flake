@@ -7,7 +7,7 @@
 		nix-diff
 		nix-index
 		nmap
-		perl536Packages.AppClusterSSH
+		perlPackages.AppClusterSSH
 		python3
 		signal-desktop
 		sysstat
