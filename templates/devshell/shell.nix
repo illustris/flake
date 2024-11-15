@@ -1,0 +1,5 @@
+{ mkShell, ... }:
+mkShell {
+	nativeBuildInputs = [];
+	shellHook = "";
+}
