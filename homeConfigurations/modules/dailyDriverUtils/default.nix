@@ -11,5 +11,6 @@
 		python3
 		signal-desktop
 		sysstat
+		trilium-next-desktop
 	];
 }
