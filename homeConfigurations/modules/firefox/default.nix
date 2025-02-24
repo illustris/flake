@@ -32,7 +32,7 @@
 			};
 			profiles.default = {
 				isDefault = true;
-				extensions = with firefox-addons.outputs.packages.${pkgs.system}; [
+				extensions.packages = with firefox-addons.outputs.packages.${pkgs.system}; [
 					bitwarden
 					browserpass
 					clearurls
