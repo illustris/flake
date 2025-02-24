@@ -14,7 +14,7 @@
 	outputs = { self, nixpkgs, home-manager, ... }: with nixpkgs.lib; with self.lib; let
 		pkgsForSystem = system: import nixpkgs {
 			inherit system;
-			overlays = with self.overlays; [ lib pkgs ];
+			overlays = with self.overlays; [ lib pkgs suckless ];
 		};
 	in {
 		lib = import ./lib {inherit (nixpkgs) lib;};
@@ -24,7 +24,9 @@
 			"riscv64-linux"
 		] (system: let
 			pkgs = pkgsForSystem system;
-		in (import ./pkgs {inherit pkgs system;}));
+		in {
+			inherit (pkgs) dwm st;
+		} // (import ./pkgs {inherit pkgs system;}));
 
 		nixosModules = import ./modules {
 			lib = nixpkgs.lib // self.lib;

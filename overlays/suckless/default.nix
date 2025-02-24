@@ -4,8 +4,8 @@ final: prev: {
 		src = final.pkgs.fetchFromGitHub {
 			owner = "illustris";
 			repo = "dwm";
-			rev = "7df55abebad6a70236a6d6fc62fd475476fd77f6";
-			hash = "sha256-Cfdv+r271etL5nYkd4U2nRE/zCW7PaHkDC11eeGqLy4=";
+			rev = "3a1972ead4dfc4ee5cdd8251fdbdae4ede756609";
+			hash = "sha256-UHt9Otd7CQ6PyNECES4c+avRB005M8LSRCPtwOOKiPg=";
 		};
 	});
 	st = prev.st.overrideAttrs (oldAttrs: {
