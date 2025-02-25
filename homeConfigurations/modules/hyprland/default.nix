@@ -66,7 +66,7 @@
 				"WLR_NO_HARDWARE_CURSORS,1"
 				"XCURSOR_SIZE,32"
 			];
-			"$fileManager" = "${pkgs.dolphin}/bin/dolphin";
+			"$fileManager" = "${pkgs.kdePackages.dolphin}/bin/dolphin";
 			general = {
 				gaps_in = 1;
 				gaps_out = 2;
