@@ -30,20 +30,20 @@
 				ext = createChromiumExtensionFor (lib.versions.major config.programs.chromium.package.version);
 			in [
 				# ublock origin
-				(ext "cjpalhdlnbpafiamejdnhcphjbkeiagm" "1.61.2"
-					"sha256-CLFYUVpSiMP3XynQ+j37yAEbtozJiZAt6km9LVRZQFI=")
+				(ext "cjpalhdlnbpafiamejdnhcphjbkeiagm" "1.62.0"
+					"sha256-lAJcYnfvnpVoyS8tQ2TGstmFA6PCu/4ySyZZcZSdlnk=")
 				# Clutter Free
 				(ext "iipjdmnoigaobkamfhnojmglcdbnfaaf" "9.3.0"
 					"sha256-MOGx1d9ha3mjp9VXQBsNSJyLuoSqmSiDonX8M3d+K9I=")
 				# xBrowserSync
-				(ext "lcbjdhceifofjlpecfpeimnnphbcjgnc" "1.5.2"
-					"sha256-7fIofv1U7J6oYATiLq2/M8INAW4Bmy/gDV2XuF+d91s=")
+				#(ext "lcbjdhceifofjlpecfpeimnnphbcjgnc" "1.5.2"
+				#	"sha256-7fIofv1U7J6oYATiLq2/M8INAW4Bmy/gDV2XuF+d91s=")
 				# just black
 				(ext "aghfnjkcakhmadgdomlmlhhaocbkloab" "3"
 					"sha256-lxRt9N0WgEV1yFmc6p5/SUEvTjafZMYx44wJvxEce7M=")
 				# Browserpass
-				(ext "naepdomgkenhinolocfifgehidddafch" "3.8.0"
-					"sha256-M4ZlCQVjilMRMRBS/mcRud0aAWX1ImbHH/Y4GgxQo+k=")
+				(ext "naepdomgkenhinolocfifgehidddafch" "3.9.0"
+					"sha256-bT1vT7RzQjCyBDfuAtfYjcyyoM0aSp+OLHAf2GFimhw=")
 			];
 		};
 	};
