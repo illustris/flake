@@ -31,7 +31,7 @@
 			in [
 				# ublock origin
 				(ext "cjpalhdlnbpafiamejdnhcphjbkeiagm" "1.62.0"
-					"sha256-lAJcYnfvnpVoyS8tQ2TGstmFA6PCu/4ySyZZcZSdlnk=")
+					"sha256-5hauSUdYLtv42lB/YpQVup0Gqgp4pH07G4MD/9EE09I=")
 				# Clutter Free
 				(ext "iipjdmnoigaobkamfhnojmglcdbnfaaf" "9.3.0"
 					"sha256-MOGx1d9ha3mjp9VXQBsNSJyLuoSqmSiDonX8M3d+K9I=")
