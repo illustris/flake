@@ -21,6 +21,7 @@
 			dtrace-script-mode
 			gitlab-ci-mode
 			go-mode
+			gptel
 			graphviz-dot-mode
 			haskell-mode
 			json-mode
