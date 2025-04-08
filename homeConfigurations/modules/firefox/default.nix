@@ -37,6 +37,7 @@
 					browserpass
 					clearurls
 					multi-account-containers
+					single-file
 					ublock-origin
 				];
 				containers = {

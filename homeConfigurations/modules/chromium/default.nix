@@ -44,6 +44,9 @@
 				# Browserpass
 				(ext "naepdomgkenhinolocfifgehidddafch" "3.9.0"
 					"sha256-bT1vT7RzQjCyBDfuAtfYjcyyoM0aSp+OLHAf2GFimhw=")
+				# single-file
+				(ext "mpiodijhokgodhhofbcjdecpffjipkle" "1.22.81"
+					"sha256-z7lDSffJbld9ssL2ETn5umLpHes2Y/iSvni8gTjjyDs=")
 			];
 		};
 	};
