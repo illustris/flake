@@ -47,3 +47,8 @@
 (add-hook 'sh-mode-hook
 	(lambda ()
 		(setq sh-basic-offset 8 indent-tabs-mode t)))
+
+;; Load gptel configuration from private location if it exists
+(let ((private-gptel-config (expand-file-name "~/.emacs.d/private/gptel-config.el")))
+  (when (file-exists-p private-gptel-config)
+    (load-file private-gptel-config)))
