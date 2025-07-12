@@ -14,4 +14,6 @@ python3Packages.buildPythonPackage rec {
 	propagatedBuildInputs = with python3Packages; [
 		proxmoxer
 	];
+	pyproject = true;
+	build-system = with python3Packages; [ setuptools ];
 }
