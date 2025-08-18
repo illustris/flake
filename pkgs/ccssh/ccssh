@@ -1,0 +1,92 @@
+# Thin wrapper for cssh with optional Consul regex lookup via -R
+
+show_help() {
+	cat <<EOF
+ccssh - Clustered SSH with Consul service discovery
+
+Usage: ccssh [OPTIONS] [CSSH_OPTIONS] [HOSTS...]
+
+ccssh-specific options:
+  -R <regex>    Query Consul for nodes matching the regex pattern
+  -c <url>      Consul URL (overrides CONSUL_URL environment variable)
+  -s <suffix>   Domain suffix for node names (overrides NODE_SUFFIX environment variable)
+  -k            Pass -k flag to curl (allow insecure SSL connections)
+  -h, --help    Show this help message
+
+Environment variables:
+  CONSUL_URL    Default Consul URL for -R queries
+  NODE_SUFFIX   Domain suffix to append to node names (optional)
+
+Examples:
+  # SSH to specific hosts
+  ccssh host1 host2 host3
+
+  # Query Consul for nodes matching pattern
+  CONSUL_URL=https://consul.example.com ccssh -R "web-.*"
+
+  # Use custom Consul URL with insecure SSL
+  ccssh -c https://consul.local -k -R "db-.*"
+
+cssh options:
+EOF
+	cssh --help
+	exit 0
+}
+
+CONSUL_REGEX=""
+CONSUL_URL="${CONSUL_URL:-}"
+NODE_SUFFIX="${NODE_SUFFIX:-}"
+CURL_INSECURE=""
+ARGS=()
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		-h|--help)
+			show_help
+			;;
+		-R)
+			CONSUL_REGEX="$2"
+			shift 2
+			;;
+		-c)
+			CONSUL_URL="$2"
+			shift 2
+			;;
+		-s)
+			NODE_SUFFIX="$2"
+			shift 2
+			;;
+		-k)
+			CURL_INSECURE="-k"
+			shift
+			;;
+		*)
+			ARGS+=("$1")
+			shift
+			;;
+	esac
+done
+
+# If -R was provided, query Consul and append matching hosts
+if [[ -n "$CONSUL_REGEX" ]]; then
+	if [[ -z "$CONSUL_URL" ]]; then
+		echo "Error: CONSUL_URL environment variable not set and -c flag not provided" >&2
+		exit 1
+	fi
+
+	NODES=$(curl ${CURL_INSECURE} -s "${CONSUL_URL}/v1/catalog/nodes" | \
+		jq -r ".[].Node" | \
+		grep -E "$CONSUL_REGEX" | \
+		if [[ -n "$NODE_SUFFIX" ]]; then
+			awk -v suffix="$NODE_SUFFIX" '{print $1"."suffix}'
+		else
+			cat
+		fi)
+
+	# shellcheck disable=SC2086
+	exec cssh "${ARGS[@]}" $NODES
+else
+	# No -R flag, pass all arguments as-is to cssh
+	exec cssh "${ARGS[@]}"
+fi
