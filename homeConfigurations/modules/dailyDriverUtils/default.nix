@@ -12,5 +12,6 @@
 		signal-desktop
 		sysstat
 		trilium-next-desktop
+		illustris.ccssh
 	];
 }
