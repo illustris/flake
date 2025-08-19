@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Thin wrapper for cssh with optional Consul regex lookup via -R
 
 show_help() {
@@ -11,6 +12,7 @@ ccssh-specific options:
   -c <url>      Consul URL (overrides CCSSH_CONSUL_URL environment variable)
   -s <suffix>   Domain suffix for node names (overrides CCSSH_NODE_SUFFIX environment variable)
   -k            Pass -k flag to curl (allow insecure SSL connections)
+  -i            Use IPs instead of FQDN
   -h, --help    Show this help message
 
 Environment variables:
@@ -38,6 +40,7 @@ CONSUL_URL="${CCSSH_CONSUL_URL:-}"
 NODE_SUFFIX="${CCSSH_NODE_SUFFIX:-}"
 CURL_INSECURE=""
 ARGS=()
+ADDR_KEY="Node"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -61,6 +64,11 @@ while [[ $# -gt 0 ]]; do
 			CURL_INSECURE="-k"
 			shift
 			;;
+		-i)
+			ADDR_KEY="Address"
+			NODE_SUFFIX=""
+			shift
+			;;
 		*)
 			ARGS+=("$1")
 			shift
@@ -76,8 +84,7 @@ if [[ -n "$CONSUL_REGEX" ]]; then
 	fi
 
 	NODES=$(curl ${CURL_INSECURE} -s "${CONSUL_URL}/v1/catalog/nodes" | \
-		jq -r ".[].Node" | \
-		grep -E "$CONSUL_REGEX" | \
+		jq -r "map(select(.Node | test(\"$CONSUL_REGEX\"))) | .[].$ADDR_KEY" | \
 		if [[ -n "$NODE_SUFFIX" ]]; then
 			awk -v suffix="$NODE_SUFFIX" '{print $1"."suffix}'
 		else
