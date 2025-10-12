@@ -10,7 +10,7 @@
 	tab-width 8
 	indent-tabs-mode t)
 
-(global-set-key (kbd "C-x k") 'kill-this-buffer)
+(global-set-key (kbd "C-x k") 'kill-current-buffer)
 (put 'scroll-left 'disabled nil)
 
 (setq inhibit-startup-screen t)
