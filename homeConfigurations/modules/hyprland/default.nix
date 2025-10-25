@@ -49,10 +49,12 @@
 					size = 3;
 					passes = 1;
 				};
-				drop_shadow = "yes";
-				shadow_range = 4;
-				shadow_render_power = 3;
-				"col.shadow" = "rgba(1a1a1aee)";
+				shadow = {
+					enabled = "yes";
+					range = 4;
+					render_power = 3;
+					color = "rgba(1a1a1aee)";
+				};
 			};
 			dwindle = {
 				pseudotile = "yes";
@@ -76,13 +78,13 @@
 				layout = "dwindle";
 				allow_tearing = false;
 			};
-			master.new_is_master = true;
+			master.new_status = "master";
 			"$menu" = "${pkgs.wofi}/bin/wofi --show drun";
 			misc.force_default_wallpaper = 0;
 			"$mainMod" = "SUPER";
 			monitor = ",highres,auto,1,bitdepth,10";
 			"$terminal" = "${pkgs.st}/bin/st";
-			windowrulev2 = "nomaximizerequest, class:.*";
+			windowrulev2 = "suppressevent maximize, class:.*";
 		};
 	};
 }
