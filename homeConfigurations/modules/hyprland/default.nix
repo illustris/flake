@@ -2,6 +2,7 @@
 {
 	home.packages = with pkgs; [
 		wl-clipboard
+		illustris.hyprland-keybinds
 	];
 	wayland.windowManager.hyprland = {
 		enable = true;
@@ -26,12 +27,20 @@
 				"$mainMod, R, exec, $menu"
 				"$mainMod, P, pseudo"
 				"$mainMod, J, togglesplit"
+				"$mainMod, d, exec, $menu"
+				"$mainMod SHIFT, RETURN, layoutmsg, swapwithmaster"
+				"$mainMod CTRL, m, layoutmsg, focusmaster"
+				"$mainMod, f, fullscreen"
+				"$mainMod SHIFT, SPACE, togglefloating"
+				"$mainMod, m, fullscreen"
 				"$mainMod, left, movefocus, l"
 				"$mainMod, right, movefocus, r"
 				"$mainMod, up, movefocus, u"
 				"$mainMod, down, movefocus, d"
 				"$mainMod, S, togglespecialworkspace, magic"
 				"$mainMod SHIFT, S, movetoworkspace, special:magic"
+				"$mainMod SHIFT, slash, exec, ${pkgs.illustris.hyprland-keybinds}/bin/hyprland-keybinds"
+				"$mainMod, slash, exec, $terminal -e ${pkgs.illustris.hyprland-keybinds}/bin/hyprland-keybinds --terminal"
 			] ++ (lib.concatLists (
 				lib.genList (x: [
 					"$mainMod, ${builtins.toString (x+1)}, workspace, ${builtins.toString (x+1)}"
