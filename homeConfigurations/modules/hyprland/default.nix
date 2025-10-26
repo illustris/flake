@@ -6,6 +6,9 @@
 	];
 	wayland.windowManager.hyprland = {
 		enable = true;
+		plugins = [
+			# pkgs.illustris.hyprland-bsp-layout
+		];
 		settings = {
 			animations = {
 				enabled = lib.mkDefault "no";
@@ -24,15 +27,18 @@
 				"$mainMod SHIFT, C, killactive"
 				"$mainMod SHIFT, Q, exit"
 				"$mainMod, E, exec, $fileManager"
-				"$mainMod, R, exec, $menu"
+				# "$mainMod, R, exec, $menu"
 				"$mainMod, P, pseudo"
 				"$mainMod, J, togglesplit"
 				"$mainMod, d, exec, $menu"
-				"$mainMod SHIFT, RETURN, layoutmsg, swapwithmaster"
+				# "$mainMod SHIFT, RETURN, layoutmsg, swapwithmaster"
 				"$mainMod CTRL, m, layoutmsg, focusmaster"
 				"$mainMod, f, fullscreen"
 				"$mainMod SHIFT, SPACE, togglefloating"
-				"$mainMod, m, fullscreen"
+				# TODO: implement monocle layout
+				# "$mainMod, m, fullscreen"
+				# TODO: fix bsp plugin
+				# "$mainMod, b, exec, hyprctl keyword general:layout bsp"
 				"$mainMod, left, movefocus, l"
 				"$mainMod, right, movefocus, r"
 				"$mainMod, up, movefocus, u"
