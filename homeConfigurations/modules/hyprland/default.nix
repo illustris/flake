@@ -3,6 +3,8 @@
 	home.packages = with pkgs; [
 		wl-clipboard
 		illustris.hyprland-keybinds
+		illustris.grimregion
+		grim
 	];
 	wayland.windowManager.hyprland = {
 		enable = true;
@@ -47,6 +49,8 @@
 				"$mainMod SHIFT, S, movetoworkspace, special:magic"
 				"$mainMod SHIFT, slash, exec, ${pkgs.illustris.hyprland-keybinds}/bin/hyprland-keybinds"
 				"$mainMod, slash, exec, $terminal -e ${pkgs.illustris.hyprland-keybinds}/bin/hyprland-keybinds --terminal"
+				", Print, exec, ${lib.getExe pkgs.grim}"
+				"$mainMod SHIFT, Print, exec, grimregion"
 			] ++ (lib.concatLists (
 				lib.genList (x: [
 					"$mainMod, ${builtins.toString (x+1)}, workspace, ${builtins.toString (x+1)}"
@@ -102,4 +106,6 @@
 			windowrulev2 = "suppressevent maximize, class:.*";
 		};
 	};
+	services.dunst.enable = true;
+	wayland.systemd.target = "wayland-session@Hyprland.target";
 }
