@@ -10,7 +10,7 @@ with lib;
 		};
 		waybar = {
 			enable = true;
-			systemd.target = "wayland-session@Hyprland.target";
+			systemd.target = "graphical-session.target";
 		};
 	};
 	services.xserver = {

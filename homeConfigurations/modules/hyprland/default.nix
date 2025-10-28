@@ -107,5 +107,5 @@
 		};
 	};
 	services.dunst.enable = true;
-	wayland.systemd.target = "wayland-session@Hyprland.target";
+	wayland.systemd.target = "graphical-session.target";
 }
