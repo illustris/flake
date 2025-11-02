@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# All monitors landscape, arranged left-to-right
+hyprctl keyword monitor "eDP-1,3840x2400@60,0x0,1,bitdepth,10"
+hyprctl keyword monitor "DVI-I-2,2560x1440@60,3840x0,1"
+hyprctl keyword monitor "DVI-I-1,2560x1440@60,6400x0,1"

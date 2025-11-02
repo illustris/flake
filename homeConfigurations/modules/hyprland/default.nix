@@ -3,8 +3,11 @@
 	home.packages = with pkgs; [
 		wl-clipboard
 		illustris.hyprland-keybinds
+		illustris.hyprland-layouts
 		illustris.grimregion
 		grim
+		hypridle
+		brightnessctl
 	];
 	wayland.windowManager.hyprland = {
 		enable = true;
@@ -28,6 +31,7 @@
 				"$mainMod, RETURN, exec, $terminal"
 				"$mainMod SHIFT, C, killactive"
 				"$mainMod SHIFT, Q, exit"
+				"$mainMod SHIFT, L, exec, ${config.programs.hyprlock.package}/bin/hyprlock"
 				"$mainMod, E, exec, $fileManager"
 				# "$mainMod, R, exec, $menu"
 				"$mainMod, P, pseudo"
@@ -51,6 +55,20 @@
 				"$mainMod, slash, exec, $terminal -e ${pkgs.illustris.hyprland-keybinds}/bin/hyprland-keybinds --terminal"
 				", Print, exec, ${lib.getExe pkgs.grim}"
 				"$mainMod SHIFT, Print, exec, grimregion"
+				# Display layout switching
+				"$mainMod SHIFT ALT, 1, exec, ${pkgs.illustris.hyprland-layouts}/bin/hypr-layout-officedesk"
+				"$mainMod SHIFT ALT, 2, exec, ${pkgs.illustris.hyprland-layouts}/bin/hypr-layout-landscape"
+				"$mainMod SHIFT ALT, 3, exec, ${pkgs.illustris.hyprland-layouts}/bin/hypr-layout-laptop-only"
+				# Workspace movement between monitors
+				"$mainMod CTRL, left, movecurrentworkspacetomonitor, l"
+				"$mainMod CTRL, right, movecurrentworkspacetomonitor, r"
+				"$mainMod CTRL, up, movecurrentworkspacetomonitor, u"
+				"$mainMod CTRL, down, movecurrentworkspacetomonitor, d"
+				"$mainMod SHIFT, comma, movecurrentworkspacetomonitor, -1"
+				"$mainMod SHIFT, period, movecurrentworkspacetomonitor, +1"
+				# "SHIFT ALT, 1, swapactiveworkspaces, current 0"
+				# "SHIFT ALT, 2, swapactiveworkspaces, current 1"
+				# "SHIFT ALT, 3, swapactiveworkspaces, current 2"
 			] ++ (lib.concatLists (
 				lib.genList (x: [
 					"$mainMod, ${builtins.toString (x+1)}, workspace, ${builtins.toString (x+1)}"
@@ -107,5 +125,144 @@
 		};
 	};
 	services.dunst.enable = true;
+
+	# Hyprlock configuration
+	programs.hyprlock = {
+		enable = true;
+		settings = {
+			general = {
+				grace = 5;
+				hide_cursor = true;
+				ignore_empty_input = true;
+			};
+
+			auth = {
+				fingerprint = {
+					enabled = true;
+					ready_message = "Place your finger on the sensor";
+					present_message = "Fingerprint detected";
+				};
+				pam = {
+					enabled = true;
+				};
+			};
+
+			background = [{
+				monitor = "";
+				path = "screenshot";
+				blur_passes = 3;
+				blur_size = 7;
+				noise = 0.0117;
+				contrast = 0.8916;
+				brightness = 0.8172;
+				vibrancy = 0.1696;
+				vibrancy_darkness = 0.0;
+			}];
+
+			input-field = [{
+				monitor = "";
+				size = "300, 50";
+				outline_thickness = 2;
+				dots_size = 0.2;
+				dots_spacing = 0.35;
+				dots_center = true;
+				outer_color = "rgba(33ccffee)";
+				inner_color = "rgba(20, 20, 20, 0.8)";
+				font_color = "rgb(200, 200, 200)";
+				fade_on_empty = false;
+				placeholder_text = "<span foreground=\"##cccccc\">Enter password...</span>";
+				hide_input = false;
+				position = "0, -120";
+				halign = "center";
+				valign = "center";
+			}];
+
+			label = [
+				{
+					monitor = "";
+					text = ''cmd[update:1000] echo "$(date +'%H:%M:%S')"'';
+					color = "rgba(200, 200, 200, 1.0)";
+					font_size = 90;
+					font_family = "Sans";
+					position = "0, 80";
+					halign = "center";
+					valign = "center";
+				}
+				{
+					monitor = "";
+					text = ''cmd[update:1000] echo "$(date +'%A, %B %d')"'';
+					color = "rgba(200, 200, 200, 1.0)";
+					font_size = 25;
+					font_family = "Sans";
+					position = "0, 0";
+					halign = "center";
+					valign = "center";
+				}
+				{
+					monitor = "";
+					text = "Hi, $USER";
+					color = "rgba(200, 200, 200, 1.0)";
+					font_size = 20;
+					font_family = "Sans";
+					position = "0, -200";
+					halign = "center";
+					valign = "center";
+				}
+				{
+					monitor = "";
+					text = "$FPRINTPROMPT $FPRINTFAIL $PAMPROMPT";
+					color = "rgba(255, 165, 0, 1.0)";
+					font_size = 16;
+					font_family = "Sans";
+					position = "0, -170";
+					halign = "center";
+					valign = "center";
+				}
+			];
+		};
+	};
+
+	# Hypridle configuration
+	xdg.configFile."hypr/hypridle.conf".text = ''
+		general {
+			lock_cmd = pidof hyprlock || ${config.programs.hyprlock.package}/bin/hyprlock
+			before_sleep_cmd = loginctl lock-session
+			after_sleep_cmd = hyprctl dispatch dpms on
+			ignore_dbus_inhibit = false
+		}
+
+		listener {
+			timeout = 300
+			on-timeout = ${pkgs.brightnessctl}/bin/brightnessctl -s set 50%
+			on-resume = ${pkgs.brightnessctl}/bin/brightnessctl -r
+		}
+
+		listener {
+			timeout = 420
+			on-timeout = loginctl lock-session
+		}
+
+		listener {
+			timeout = 480
+			on-timeout = hyprctl dispatch dpms off
+			on-resume = hyprctl dispatch dpms on
+		}
+	'';
+
+	# Enable hypridle service
+	systemd.user.services.hypridle = {
+		Unit = {
+			Description = "Hypridle idle daemon";
+			PartOf = [ "graphical-session.target" ];
+			After = [ "graphical-session.target" ];
+		};
+		Service = {
+			ExecStart = "${pkgs.hypridle}/bin/hypridle";
+			Restart = "always";
+			RestartSec = 10;
+		};
+		Install.WantedBy = [ "graphical-session.target" ];
+	};
+
 	wayland.systemd.target = "graphical-session.target";
 }

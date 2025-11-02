@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Laptop only - disable external monitors dynamically
+# Disable externals FIRST to avoid race condition lockups
+
+# Get all monitor names except eDP-1
+external_monitors=$(hyprctl monitors -j | jq -r '.[].name' | grep -v "^eDP-1$")
+
+# Disable all external monitors first
+for monitor in $external_monitors; do
+	hyprctl keyword monitor "$monitor,disable"
+done
+
+# Then configure laptop display with 10-bit color
+hyprctl keyword monitor "eDP-1,3840x2400@60,0x0,1,bitdepth,10"
