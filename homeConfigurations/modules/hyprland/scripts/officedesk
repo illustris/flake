@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Portrait externals with laptop centered (matching xrandr officedesk.sh layout)
+# DVI-I-1 left (rotated right), eDP-1 center, DVI-I-2 right (rotated left)
+hyprctl keyword monitor "DVI-I-1,2560x1440@60,0x0,1,transform,1"
+hyprctl keyword monitor "eDP-1,3840x2400@60,1440x0,1,bitdepth,10"
+hyprctl keyword monitor "DVI-I-2,2560x1440@60,5280x0,1,transform,3"
