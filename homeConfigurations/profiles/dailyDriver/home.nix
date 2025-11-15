@@ -9,6 +9,7 @@
 	imports = [
 		../../modules/bash
 		../../modules/chromium
+		../../modules/claude-code
 		../../modules/dailyDriverUtils
 		../../modules/emacs
 		(import ../../modules/firefox inputs)
