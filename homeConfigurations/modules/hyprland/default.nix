@@ -1,4 +1,48 @@
 { pkgs, config, lib, ... }:
+let
+	smart-focus = pkgs.writeShellApplication {
+		name = "smart-focus";
+		runtimeInputs = [ pkgs.hyprland ];
+		text = ''
+			direction="$1"
+
+			# Get current layout from hyprctl
+			current_layout=$(hyprctl workspacelayout)
+
+			if [ "$current_layout" = "scrolling" ]; then
+				case "$direction" in
+					left)
+						hyprctl dispatch layoutmsg "move -col"
+						;;
+					right)
+						hyprctl dispatch layoutmsg "move +col"
+						;;
+					up)
+						hyprctl dispatch movefocus u
+						;;
+					down)
+						hyprctl dispatch movefocus d
+						;;
+				esac
+			else
+				case "$direction" in
+					left)
+						hyprctl dispatch movefocus l
+						;;
+					right)
+						hyprctl dispatch movefocus r
+						;;
+					up)
+						hyprctl dispatch movefocus u
+						;;
+					down)
+						hyprctl dispatch movefocus d
+						;;
+				esac
+			fi
+		'';
+	};
+in
 {
 	home.packages = with pkgs; [
 		wl-clipboard
@@ -12,7 +56,8 @@
 	wayland.windowManager.hyprland = {
 		enable = true;
 		plugins = [
-			# pkgs.illustris.hyprland-bsp-layout
+			pkgs.hyprlandPlugins.hyprscrolling
+			pkgs.illustris.hyprland-workspace-layouts
 		];
 		settings = {
 			animations = {
@@ -41,14 +86,15 @@
 				"$mainMod CTRL, m, layoutmsg, focusmaster"
 				"$mainMod, f, fullscreen"
 				"$mainMod SHIFT, SPACE, togglefloating"
+				"$mainMod, SPACE, layoutmsg, cyclelayout next"
 				# TODO: implement monocle layout
 				# "$mainMod, m, fullscreen"
 				# TODO: fix bsp plugin
 				# "$mainMod, b, exec, hyprctl keyword general:layout bsp"
-				"$mainMod, left, movefocus, l"
-				"$mainMod, right, movefocus, r"
-				"$mainMod, up, movefocus, u"
-				"$mainMod, down, movefocus, d"
+				"$mainMod, left, exec, ${smart-focus}/bin/smart-focus left"
+				"$mainMod, right, exec, ${smart-focus}/bin/smart-focus right"
+				"$mainMod, up, exec, ${smart-focus}/bin/smart-focus up"
+				"$mainMod, down, exec, ${smart-focus}/bin/smart-focus down"
 				"$mainMod, S, togglespecialworkspace, magic"
 				"$mainMod SHIFT, S, movetoworkspace, special:magic"
 				"$mainMod SHIFT, slash, exec, ${pkgs.illustris.hyprland-keybinds}/bin/hyprland-keybinds"
@@ -79,6 +125,7 @@
 				"$mainMod,mouse:272,movewindow"
 				"$mainMod, mouse:273, resizewindow"
 			];
+			debug.disable_logs = false;
 			decoration = {
 				rounding = 4;
 				blur = {
@@ -95,7 +142,7 @@
 			};
 			dwindle = {
 				pseudotile = "yes";
-				preserve_split = "yes";
+				# preserve_split = "yes";
 			};
 			env  = [
 				"GDK_SCALE,2"
@@ -112,7 +159,7 @@
 				border_size = 1;
 				"col.active_border" = "rgba(33ccffee) rgba(00ff99ee) 45deg";
 				"col.inactive_border" = "rgba(595959aa)";
-				layout = "dwindle";
+				layout = "workspacelayout";
 				allow_tearing = false;
 			};
 			master.new_status = "master";

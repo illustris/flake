@@ -1,0 +1,40 @@
+--- a/main.cpp
++++ b/main.cpp
+@@ -87,6 +87,21 @@
+     g_pWorkspaceLayout->setDefaultLayout("dwindle");
+     HyprlandAPI::reloadConfig();
+ 
++    // Register hyprctl command to query current workspace layout
++    HyprlandAPI::registerHyprCtlCommand(PHANDLE, {
++        .name = "workspacelayout",
++        .exact = true,
++        .fn = [](eHyprCtlOutputFormat format, std::string args) -> std::string {
++            auto workspace = g_pCompositor->getWorkspaceByID(g_pCompositor->m_lastMonitor->activeWorkspaceID());
++            if (workspace) {
++                IHyprLayout* layout = g_pWorkspaceLayout->getLayoutForWorkspace(workspace->m_id);
++                if (layout)
++                    return layout->getLayoutName();
++            }
++            return "unknown";
++        }
++    });
++
+     static const auto ADDLAYOUTMETHODS = HyprlandAPI::findFunctionsByName(PHANDLE, "addLayout");
+     g_pAddLayoutHook                   = HyprlandAPI::createFunctionHook(PHANDLE, ADDLAYOUTMETHODS[0].address, (void*)&hkAddLayout);
+     g_pAddLayoutHook->hook();
+--- a/workspaceLayout.hpp
++++ b/workspaceLayout.hpp
+@@ -72,10 +72,11 @@
+     void                             setupWorkspace(PHLWORKSPACEREF pWorkspaceRef);
+     void                             setupLayoutList();
+ 
++    IHyprLayout*                     getLayoutForWorkspace(const int& ws);
++
+   private:
+     std::vector<SWorkspaceLayoutData>     m_vWorkspacesData;
+     std::list<SWorkspaceLayoutWindowData> m_vWorkspaceWindowData;
+     SWorkspaceLayoutWindowData*           getDataFromWindow(PHLWINDOW, bool create = true);
+-    IHyprLayout*                          getLayoutForWorkspace(const int& ws);
+     IHyprLayout*                          getPreviousLayoutForWorkspace(const int& ws);
+     void                                  setLayoutForWorkspace(IHyprLayout* layout, PHLWORKSPACE pWorkspace, bool isDefault);
+     void                                  setLayoutForWorkspace(IHyprLayout* layout, const int& ws, bool isDefault = false);
