@@ -1,0 +1,15 @@
+--- a/Scrolling.cpp
++++ b/Scrolling.cpp
+@@ -795,10 +795,8 @@ std::any CScrollingLayout::layoutMessage(SLayoutMessageHeader header, std::stri
+ 
+             const auto COL = DATA->next(WDATA->column.lock());
+             if (!COL) {
+-                // move to max
+-                DATA->leftOffset = DATA->maxWidth();
+-                DATA->recalculate();
+-                g_pCompositor->focusWindow(nullptr);
++                // At last column, do nothing (prevents getting stuck)
++                // This matches the behavior of move -col at the first column
+                 return {};
+             }
+ 

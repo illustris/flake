@@ -1,26 +1,22 @@
 {
 	lib,
 	stdenv,
-	fetchFromGitHub,
 	hyprland,
+	hyprlandPlugins,
 	pkg-config,
 	...
 }:
 
 stdenv.mkDerivation {
-	pname = "hyprWorkspaceLayouts";
-	version = "0-unstable-2025-01-14";
+	pname = "hyprscrolling";
+	version = hyprlandPlugins.hyprscrolling.version;
 
-	src = fetchFromGitHub {
-		owner = "zakk4223";
-		repo = "hyprworkspacelayouts";
-		rev = "e44a2dbaa5a8b7d116dd284bc28f39a9067a2cbc";
-		hash = "sha256-kUUPeijIxnS7LZzz24r2vw5Ghiz0XJwUXGovZpgajCo=";
-	};
+	# Use the same source as nixpkgs hyprlandPlugins
+	src = hyprlandPlugins.hyprscrolling.src;
 
 	patches = [
-		./add-getlayout.patch
-		./fix-null-window.patch
+		./boundary-fix.patch
+		./workspace-column-tracking.patch
 	];
 
 	nativeBuildInputs = [
@@ -48,13 +44,13 @@ stdenv.mkDerivation {
 	installPhase = ''
 		runHook preInstall
 		mkdir -p $out/lib
-		cp workspaceLayoutPlugin.so $out/lib/libhyprWorkspaceLayouts.so
+		cp hyprscrolling.so $out/lib/libhyprscrolling.so
 		runHook postInstall
 	'';
 
 	meta = with lib; {
-		description = "Workspace-specific window layouts for Hyprland";
-		homepage = "https://github.com/zakk4223/hyprworkspacelayouts";
+		description = "Scrolling/PaperWM-like layout for Hyprland";
+		homepage = "https://github.com/hyprwm/hyprland-plugins";
 		license = licenses.bsd3;
 		platforms = platforms.linux;
 	};

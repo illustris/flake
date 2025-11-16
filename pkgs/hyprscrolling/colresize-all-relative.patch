@@ -1,0 +1,38 @@
+--- a/Scrolling.cpp
++++ b/Scrolling.cpp
+@@ -905,12 +905,27 @@ std::any CScrollingLayout::layoutMessage(SLayoutMessageHeader header, std::stri
+             return {};
+
+         if (ARGS[1] == "all") {
+-            float abs = 0;
+-            try {
+-                abs = std::stof(ARGS[2]);
+-            } catch (...) { return {}; }
+-
+-            for (const auto& c : WDATA->column->workspace->columns) {
+-                c->columnWidth = abs;
++            if (ARGS[2][0] == '+' || ARGS[2][0] == '-') {
++                // Handle relative values
++                const auto PLUSMINUS = getPlusMinusKeywordResult(ARGS[2], 0);
++
++                if (!PLUSMINUS.has_value())
++                    return {};
++
++                for (const auto& c : WDATA->column->workspace->columns) {
++                    c->columnWidth = std::clamp(c->columnWidth + *PLUSMINUS, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH);
++                }
++            } else {
++                // Handle absolute values
++                float abs = 0;
++                try {
++                    abs = std::stof(ARGS[2]);
++                } catch (...) { return {}; }
++
++                abs = std::clamp(abs, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH);
++
++                for (const auto& c : WDATA->column->workspace->columns) {
++                    c->columnWidth = abs;
++                }
+             }
+
+             WDATA->column->workspace->recalculate();
