@@ -56,7 +56,7 @@ in
 	wayland.windowManager.hyprland = {
 		enable = true;
 		plugins = [
-			pkgs.hyprlandPlugins.hyprscrolling
+			pkgs.illustris.hyprscrolling
 			pkgs.illustris.hyprland-workspace-layouts
 		];
 		settings = {
@@ -87,6 +87,8 @@ in
 				"$mainMod, f, fullscreen"
 				"$mainMod SHIFT, SPACE, togglefloating"
 				"$mainMod, SPACE, layoutmsg, cyclelayout next"
+				"$mainMod, minus, layoutmsg, colresize all -0.167"
+				"$mainMod, equal, layoutmsg, colresize all +0.167"
 				# TODO: implement monocle layout
 				# "$mainMod, m, fullscreen"
 				# TODO: fix bsp plugin
@@ -167,6 +169,7 @@ in
 			misc.force_default_wallpaper = 0;
 			"$mainMod" = "SUPER";
 			monitor = ",highres,auto,1,bitdepth,10";
+			plugin.hyprscrolling.column_width = 0.5;
 			"$terminal" = "${pkgs.st}/bin/st";
 			windowrulev2 = "suppressevent maximize, class:.*";
 		};

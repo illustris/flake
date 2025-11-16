@@ -1,0 +1,14 @@
+--- a/workspaceLayout.cpp
++++ b/workspaceLayout.cpp
+@@ -285,5 +285,10 @@ std::any CWorkspaceLayout::layoutMessage(SLayoutMessageHeader header, std::stri
+     auto       command = vars[0];
+ 
+     const auto PWINDOW = header.pWindow;
++    if (!PWINDOW) {
++        Debug::log(WARN, "[workspacelayout] layoutmsg called with null window pointer");
++        return 0;
++    }
++
+     auto const WSID    = PWINDOW->workspaceID();
+     if (command == "setlayout" && (vars.size() == 2)) {
+         IHyprLayout* layout = getLayoutByName(vars[1]);
