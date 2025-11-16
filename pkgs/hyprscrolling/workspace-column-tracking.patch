@@ -1,0 +1,85 @@
+diff --git a/hyprscrolling/Scrolling.cpp b/hyprscrolling/Scrolling.cpp
+index af97822..2e5386c 100644
+--- a/hyprscrolling/Scrolling.cpp
++++ b/hyprscrolling/Scrolling.cpp
+@@ -143,7 +143,8 @@ SP<SColumnData> SWorkspaceData::add() {
+     static const auto PCOLWIDTH = CConfigValue<Hyprlang::FLOAT>("plugin:hyprscrolling:column_width");
+     auto              col       = columns.emplace_back(makeShared<SColumnData>(self.lock()));
+     col->self                   = col;
+-    col->columnWidth            = *PCOLWIDTH;
++    col->columnWidth            = lastColumnWidth > 0 ? lastColumnWidth : *PCOLWIDTH;
++    lastColumnWidth             = col->columnWidth;
+     return col;
+ }
+ 
+@@ -151,7 +152,8 @@ SP<SColumnData> SWorkspaceData::add(int after) {
+     static const auto PCOLWIDTH = CConfigValue<Hyprlang::FLOAT>("plugin:hyprscrolling:column_width");
+     auto              col       = makeShared<SColumnData>(self.lock());
+     col->self                   = col;
+-    col->columnWidth            = *PCOLWIDTH;
++    col->columnWidth            = lastColumnWidth > 0 ? lastColumnWidth : *PCOLWIDTH;
++    lastColumnWidth             = col->columnWidth;
+     columns.insert(columns.begin() + after + 1, col);
+     return col;
+ }
+@@ -905,13 +907,34 @@ std::any CScrollingLayout::layoutMessage(SLayoutMessageHeader header, std::strin
+             return {};
+ 
+         if (ARGS[1] == "all") {
+-            float abs = 0;
+-            try {
+-                abs = std::stof(ARGS[2]);
+-            } catch (...) { return {}; }
++            if (ARGS[2][0] == '+' || ARGS[2][0] == '-') {
++                // Handle relative values
++                const auto PLUSMINUS = getPlusMinusKeywordResult(ARGS[2], 0);
++
++                if (!PLUSMINUS.has_value())
++                    return {};
++
++                for (const auto& c : WDATA->column->workspace->columns) {
++                    c->columnWidth = std::clamp(c->columnWidth + *PLUSMINUS, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH);
++                }
++
++                // Update workspace's tracked column width
++                WDATA->column->workspace->lastColumnWidth = WDATA->column->columnWidth;
++            } else {
++                // Handle absolute values
++                float abs = 0;
++                try {
++                    abs = std::stof(ARGS[2]);
++                } catch (...) { return {}; }
++
++                abs = std::clamp(abs, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH);
++
++                for (const auto& c : WDATA->column->workspace->columns) {
++                    c->columnWidth = abs;
++                }
+ 
+-            for (const auto& c : WDATA->column->workspace->columns) {
+-                c->columnWidth = abs;
++                // Update workspace's tracked column width
++                WDATA->column->workspace->lastColumnWidth = abs;
+             }
+ 
+             WDATA->column->workspace->recalculate();
+@@ -920,6 +943,7 @@ std::any CScrollingLayout::layoutMessage(SLayoutMessageHeader header, std::strin
+ 
+         CScopeGuard x([WDATA] {
+             WDATA->column->columnWidth = std::clamp(WDATA->column->columnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH);
++            WDATA->column->workspace->lastColumnWidth = WDATA->column->columnWidth;
+             WDATA->column->workspace->centerOrFitCol(WDATA->column.lock());
+             WDATA->column->workspace->recalculate();
+         });
+diff --git a/hyprscrolling/Scrolling.hpp b/hyprscrolling/Scrolling.hpp
+index 21b5dbc..c8e015a 100644
+--- a/hyprscrolling/Scrolling.hpp
++++ b/hyprscrolling/Scrolling.hpp
+@@ -60,6 +60,7 @@ struct SWorkspaceData {
+     PHLWORKSPACEREF              workspace;
+     std::vector<SP<SColumnData>> columns;
+     float                        leftOffset = 0;
++    float                        lastColumnWidth = -1.0F;
+ 
+     SP<SColumnData>              add();
+     SP<SColumnData>              add(int after);
