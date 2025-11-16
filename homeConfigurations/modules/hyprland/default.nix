@@ -12,10 +12,10 @@ let
 			if [ "$current_layout" = "scrolling" ]; then
 				case "$direction" in
 					left)
-						hyprctl dispatch layoutmsg "move -col"
+						hyprctl dispatch layoutmsg "focus l"
 						;;
 					right)
-						hyprctl dispatch layoutmsg "move +col"
+						hyprctl dispatch layoutmsg "focus r"
 						;;
 					up)
 						hyprctl dispatch movefocus u
