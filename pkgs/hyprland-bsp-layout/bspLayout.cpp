@@ -55,8 +55,10 @@ void CBSPLayout::applyTreeGeometry(SBSPNode* node) {
 		if (node->window)
 			applyNodeGeometry(node->window, node->box);
 	} else {
-		applyTreeGeometry(node->left.get());
-		applyTreeGeometry(node->right.get());
+		if (node->left)
+			applyTreeGeometry(node->left.get());
+		if (node->right)
+			applyTreeGeometry(node->right.get());
 	}
 }
 
@@ -120,6 +122,36 @@ void CBSPLayout::splitNode(SBSPNode* node, PHLWINDOW newWindow) {
 	node->window = nullptr; // Parent node no longer holds window
 }
 
+void CBSPLayout::recalculateTreeBoxes(SBSPNode* node) {
+	if (!node || node->isLeaf)
+		return;
+
+	// Recalculate child boxes based on current node's box and split
+	if (node->splitDir == SplitDirection::HORIZONTAL) {
+		if (node->left) {
+			node->left->box = CBox(node->box.pos(),
+				{node->box.w, node->box.h * node->splitRatio});
+		}
+		if (node->right) {
+			node->right->box = CBox({node->box.x, node->box.y + node->box.h * node->splitRatio},
+				{node->box.w, node->box.h * (1.0f - node->splitRatio)});
+		}
+	} else {
+		if (node->left) {
+			node->left->box = CBox(node->box.pos(),
+				{node->box.w * node->splitRatio, node->box.h});
+		}
+		if (node->right) {
+			node->right->box = CBox({node->box.x + node->box.w * node->splitRatio, node->box.y},
+				{node->box.w * (1.0f - node->splitRatio), node->box.h});
+		}
+	}
+
+	// Recursively recalculate children
+	recalculateTreeBoxes(node->left.get());
+	recalculateTreeBoxes(node->right.get());
+}
+
 SBSPNode* CBSPLayout::removeWindowFromTree(SBSPNode* node, PHLWINDOW window, bool& found) {
 	if (!node)
 		return nullptr;
@@ -132,34 +164,43 @@ SBSPNode* CBSPLayout::removeWindowFromTree(SBSPNode* node, PHLWINDOW window, boo
 		return node;
 	}
 
-	// Check children
+	// Recursively search in children
 	auto newLeft = removeWindowFromTree(node->left.get(), window, found);
-	auto newRight = removeWindowFromTree(node->right.get(), window, found);
+	if (!found) {
+		auto newRight = removeWindowFromTree(node->right.get(), window, found);
+		if (!found)
+			return node; // Window not found in this subtree
 
-	// If window was found and removed
-	if (found) {
-		// If one child was removed, collapse this node to the other child
-		if (!newLeft && newRight) {
-			// Promote right child
-			node->isLeaf = newRight->isLeaf;
-			node->window = newRight->window;
-			node->splitDir = newRight->splitDir;
-			node->splitRatio = newRight->splitRatio;
-			node->left = std::move(newRight->left);
-			node->right = std::move(newRight->right);
+		// Window was in right child
+		if (!newRight) {
+			// Right child was removed, promote left child
+			// Move ownership from left child before destroying it
+			if (node->left) {
+				auto leftChild = std::move(node->left);
+				node->isLeaf = leftChild->isLeaf;
+				node->window = leftChild->window;
+				node->splitDir = leftChild->splitDir;
+				node->splitRatio = leftChild->splitRatio;
+				node->left = std::move(leftChild->left);
+				node->right = std::move(leftChild->right);
+			}
 			return node;
-		} else if (newLeft && !newRight) {
-			// Promote left child
-			node->isLeaf = newLeft->isLeaf;
-			node->window = newLeft->window;
-			node->splitDir = newLeft->splitDir;
-			node->splitRatio = newLeft->splitRatio;
-			node->left = std::move(newLeft->left);
-			node->right = std::move(newLeft->right);
+		}
+	} else {
+		// Window was in left child
+		if (!newLeft) {
+			// Left child was removed, promote right child
+			// Move ownership from right child before destroying it
+			if (node->right) {
+				auto rightChild = std::move(node->right);
+				node->isLeaf = rightChild->isLeaf;
+				node->window = rightChild->window;
+				node->splitDir = rightChild->splitDir;
+				node->splitRatio = rightChild->splitRatio;
+				node->left = std::move(rightChild->left);
+				node->right = std::move(rightChild->right);
+			}
 			return node;
-		} else if (!newLeft && !newRight) {
-			// Both children removed (shouldn't happen)
-			return nullptr;
 		}
 	}
 
@@ -224,7 +265,9 @@ void CBSPLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
 		// Tree is empty, remove it
 		m_mWorkspaceRoots.erase(it);
 	} else if (found) {
-		// Re-apply geometry to all windows
+		// Recalculate all box geometries in the tree
+		recalculateTreeBoxes(it->second.get());
+		// Apply the updated geometry to all windows
 		applyTreeGeometry(it->second.get());
 	}
 }
@@ -242,7 +285,10 @@ void CBSPLayout::recalculateMonitor(const MONITORID& monid) {
 		// Update root box
 		root->box = getWorkspaceBox(workspace);
 
-		// Recursively recalculate tree
+		// Recalculate all boxes in the tree
+		recalculateTreeBoxes(root.get());
+
+		// Apply the updated geometry
 		applyTreeGeometry(root.get());
 	}
 }
@@ -258,6 +304,7 @@ void CBSPLayout::recalculateWindow(PHLWINDOW pWindow) {
 
 	// Update root box and recalculate tree
 	it->second->box = getWorkspaceBox(workspace);
+	recalculateTreeBoxes(it->second.get());
 	applyTreeGeometry(it->second.get());
 }
 

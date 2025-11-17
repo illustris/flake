@@ -59,6 +59,7 @@ private:
 	void splitNode(SBSPNode* node, PHLWINDOW newWindow);
 	void applyNodeGeometry(PHLWINDOW window, const CBox& box);
 	void applyTreeGeometry(SBSPNode* node);
+	void recalculateTreeBoxes(SBSPNode* node);
 	SBSPNode* removeWindowFromTree(SBSPNode* node, PHLWINDOW window, bool& found);
 	CBox getWorkspaceBox(PHLWORKSPACE workspace);
 };

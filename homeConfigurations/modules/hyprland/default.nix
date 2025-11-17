@@ -58,6 +58,7 @@ in
 		plugins = [
 			pkgs.illustris.hyprscrolling
 			pkgs.illustris.hyprland-workspace-layouts
+			pkgs.illustris.hyprland-bsp-layout
 		];
 		settings = {
 			animations = {
