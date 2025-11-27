@@ -7,6 +7,7 @@
 		bmon
 		dnsutils
 		htop
+		iotop-c
 		lm_sensors
 		nethogs
 		nix-tree
