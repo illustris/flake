@@ -23,7 +23,12 @@ CBox CBSPLayout::getWorkspaceBox(PHLWORKSPACE workspace) {
 		return CBox();
 
 	auto monitor = workspace->m_monitor;
-	return CBox(monitor->m_position, monitor->m_size);
+
+	// Calculate usable workspace area excluding reserved areas for bars/panels
+	Vector2D position = monitor->m_position + monitor->m_reservedTopLeft;
+	Vector2D size = monitor->m_size - monitor->m_reservedTopLeft - monitor->m_reservedBottomRight;
+
+	return CBox(position, size);
 }
 
 void CBSPLayout::applyNodeGeometry(PHLWINDOW window, const CBox& box) {
