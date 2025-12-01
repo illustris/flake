@@ -13,7 +13,7 @@
 		../../modules/dailyDriverUtils
 		../../modules/emacs
 		(import ../../modules/firefox inputs)
-		(import ../../modules/mangowc inputs)
+		# (import ../../modules/mangowc inputs)
 		../../modules/git
 		../../modules/gpg-agent
 		../../modules/hyprland
