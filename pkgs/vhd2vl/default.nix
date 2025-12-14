@@ -1,5 +1,6 @@
-{ stdenv, lib, fetchFromGitHub, flex, bison, verilog, ... }:
+{ stdenv, lib, fetchFromGitHub, flex, bison, iverilog ? null, verilog ? null, ... }:
 with lib;
+assert iverilog != null || verilog != null;
 stdenv.mkDerivation rec {
 	name = "vnd2vl";
 
@@ -12,7 +13,7 @@ stdenv.mkDerivation rec {
 		hash = "sha256-Fmlnts7Oei2ApO+ocObA277/C/HQqpEYkmgkQuMVap8=";
 	};
 
-	buildInputs = [ flex bison verilog ];
+	buildInputs = [ flex bison (if isDerivation iverilog then iverilog else verilog) ];
 
 	patchPhase = ''
 		substituteInPlace translated_examples/test.v \
