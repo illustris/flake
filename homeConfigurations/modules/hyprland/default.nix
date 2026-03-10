@@ -1,43 +1,47 @@
 { pkgs, config, lib, ... }:
 let
+	layout-set = pkgs.writeShellApplication {
+		name = "layout-set";
+		runtimeInputs = [ pkgs.hyprland pkgs.jq ];
+		text = ''
+			layout="$1"
+			ws_id=$(hyprctl activeworkspace -j | jq -r '.id')
+			hyprctl keyword workspace "$ws_id",layout:"$layout"
+		'';
+	};
+	layout-toggle = pkgs.writeShellApplication {
+		name = "layout-toggle";
+		runtimeInputs = [ pkgs.hyprland pkgs.jq ];
+		text = ''
+			ws_json=$(hyprctl activeworkspace -j)
+			ws_id=$(echo "$ws_json" | jq -r '.id')
+			current=$(echo "$ws_json" | jq -r '.tiledLayout')
+			if [ "$current" = "scrolling" ]; then
+				hyprctl keyword workspace "$ws_id",layout:dwindle
+			else
+				hyprctl keyword workspace "$ws_id",layout:scrolling
+			fi
+		'';
+	};
 	smart-focus = pkgs.writeShellApplication {
 		name = "smart-focus";
-		runtimeInputs = [ pkgs.hyprland ];
+		runtimeInputs = [ pkgs.hyprland pkgs.jq ];
 		text = ''
 			direction="$1"
-
-			# Get current layout from hyprctl
-			current_layout=$(hyprctl workspacelayout)
-
+			current_layout=$(hyprctl activeworkspace -j | jq -r '.tiledLayout')
 			if [ "$current_layout" = "scrolling" ]; then
 				case "$direction" in
-					left)
-						hyprctl dispatch layoutmsg "focus l"
-						;;
-					right)
-						hyprctl dispatch layoutmsg "focus r"
-						;;
-					up)
-						hyprctl dispatch movefocus u
-						;;
-					down)
-						hyprctl dispatch movefocus d
-						;;
+					left)  hyprctl dispatch layoutmsg "focus l" ;;
+					right) hyprctl dispatch layoutmsg "focus r" ;;
+					up)    hyprctl dispatch movefocus u ;;
+					down)  hyprctl dispatch movefocus d ;;
 				esac
 			else
 				case "$direction" in
-					left)
-						hyprctl dispatch movefocus l
-						;;
-					right)
-						hyprctl dispatch movefocus r
-						;;
-					up)
-						hyprctl dispatch movefocus u
-						;;
-					down)
-						hyprctl dispatch movefocus d
-						;;
+					left)  hyprctl dispatch movefocus l ;;
+					right) hyprctl dispatch movefocus r ;;
+					up)    hyprctl dispatch movefocus u ;;
+					down)  hyprctl dispatch movefocus d ;;
 				esac
 			fi
 		'';
@@ -56,8 +60,9 @@ in
 	wayland.windowManager.hyprland = {
 		enable = true;
 		plugins = [
-			pkgs.illustris.hyprscrolling
-			pkgs.illustris.hyprland-workspace-layouts
+			# Scrolling layout is now built into hyprland core
+			# pkgs.illustris.hyprscrolling
+			# pkgs.illustris.hyprland-workspace-layouts
 			pkgs.illustris.hyprland-bsp-layout
 		];
 		settings = {
@@ -80,20 +85,19 @@ in
 				"$mainMod SHIFT, L, exec, ${config.programs.hyprlock.package}/bin/hyprlock"
 				"$mainMod, E, exec, $fileManager"
 				# "$mainMod, R, exec, $menu"
-				"$mainMod, P, pseudo"
-				"$mainMod, J, togglesplit"
+				# "$mainMod, P, pseudo" # dwindle-only
+				# "$mainMod, J, togglesplit" # dwindle-only
 				"$mainMod, d, exec, $menu"
 				# "$mainMod SHIFT, RETURN, layoutmsg, swapwithmaster"
-				"$mainMod CTRL, m, layoutmsg, focusmaster"
+				# "$mainMod CTRL, m, layoutmsg, focusmaster" # master-layout only
 				"$mainMod, f, fullscreen"
 				"$mainMod SHIFT, SPACE, togglefloating"
-				"$mainMod, SPACE, layoutmsg, cyclelayout next"
-				"$mainMod, minus, layoutmsg, colresize all -0.167"
-				"$mainMod, equal, layoutmsg, colresize all +0.167"
+				"$mainMod, SPACE, exec, ${layout-toggle}/bin/layout-toggle"
+				"$mainMod, minus, layoutmsg, colresize all 0.333"
+				"$mainMod, equal, layoutmsg, colresize all 0.5"
 				# TODO: implement monocle layout
 				# "$mainMod, m, fullscreen"
-				# TODO: fix bsp plugin
-				# "$mainMod, b, exec, hyprctl keyword general:layout bsp"
+				"$mainMod, b, exec, ${layout-set}/bin/layout-set bsp"
 				"$mainMod, left, exec, ${smart-focus}/bin/smart-focus left"
 				"$mainMod, right, exec, ${smart-focus}/bin/smart-focus right"
 				"$mainMod, up, exec, ${smart-focus}/bin/smart-focus up"
@@ -162,7 +166,7 @@ in
 				border_size = 1;
 				"col.active_border" = "rgba(33ccffee) rgba(00ff99ee) 45deg";
 				"col.inactive_border" = "rgba(595959aa)";
-				layout = "workspacelayout";
+				layout = "scrolling"; # was "workspacelayout" (plugin disabled, scrolling now built-in)
 				allow_tearing = false;
 			};
 			master.new_status = "master";
@@ -170,9 +174,13 @@ in
 			misc.force_default_wallpaper = 0;
 			"$mainMod" = "SUPER";
 			monitor = ",highres,auto,1,bitdepth,10";
-			plugin.hyprscrolling.column_width = 0.5;
+			scrolling.column_width = 0.5;
 			"$terminal" = "${pkgs.st}/bin/st";
-			windowrulev2 = "suppressevent maximize, class:.*";
+			windowrule = [{
+				name = "no-maximize";
+				"match:class" = ".*";
+				suppress_event = "maximize";
+			}];
 		};
 	};
 	services.dunst.enable = true;

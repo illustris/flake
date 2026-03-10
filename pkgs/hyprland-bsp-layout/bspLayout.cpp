@@ -1,119 +1,82 @@
 #include "bspLayout.hpp"
-#include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/desktop/Window.hpp>
-#include <hyprland/src/config/ConfigManager.hpp>
+#include <hyprland/src/layout/algorithm/Algorithm.hpp>
+#include <hyprland/src/layout/space/Space.hpp>
+#include <hyprland/src/debug/log/Logger.hpp>
+#include <format>
 
-CBSPLayout::~CBSPLayout() {}
-
-void CBSPLayout::onEnable() {
-	for (auto& w : g_pCompositor->m_windows) {
-		if (w->isHidden() || !w->m_isMapped || w->m_fadingOut || w->m_isFloating)
-			continue;
-
-		onWindowCreatedTiling(w, DIRECTION_DEFAULT);
-	}
-}
-
-void CBSPLayout::onDisable() {
-	m_mWorkspaceRoots.clear();
-}
-
-CBox CBSPLayout::getWorkspaceBox(PHLWORKSPACE workspace) {
-	if (!workspace || !workspace->m_monitor)
-		return CBox();
-
-	auto monitor = workspace->m_monitor;
-
-	// Calculate usable workspace area excluding reserved areas for bars/panels
-	Vector2D position = monitor->m_position + monitor->m_reservedTopLeft;
-	Vector2D size = monitor->m_size - monitor->m_reservedTopLeft - monitor->m_reservedBottomRight;
-
-	return CBox(position, size);
-}
-
-void CBSPLayout::applyNodeGeometry(PHLWINDOW window, const CBox& box) {
-	if (!window || !window->m_isMapped)
-		return;
-
-	window->unsetWindowData(PRIORITY_LAYOUT);
-
-	CBox nodeBox = box;
-	nodeBox.round();
-
-	window->m_size = nodeBox.size();
-	window->m_position = nodeBox.pos();
-
-	auto reserved = window->getFullWindowReservedArea();
-
-	*window->m_realPosition = window->m_position + reserved.topLeft;
-	*window->m_realSize = window->m_size - (reserved.topLeft + reserved.bottomRight);
-
-	window->updateWindowDecos();
-	window->sendWindowSize(true);
-}
-
-void CBSPLayout::applyTreeGeometry(SBSPNode* node) {
+void CBSPAlgorithm::applyTreeGeometry(SBSPNode* node) {
 	if (!node)
 		return;
 
 	if (node->isLeaf) {
-		if (node->window)
-			applyNodeGeometry(node->window, node->box);
+		if (node->target)
+			node->target->setPositionGlobal(node->box);
 	} else {
-		if (node->left)
-			applyTreeGeometry(node->left.get());
-		if (node->right)
-			applyTreeGeometry(node->right.get());
+		applyTreeGeometry(node->left.get());
+		applyTreeGeometry(node->right.get());
 	}
 }
 
-SBSPNode* CBSPLayout::getNodeFromWindow(PHLWINDOW pWindow, SBSPNode* root) {
+SBSPNode* CBSPAlgorithm::getNodeFromTarget(SP<Layout::ITarget> target, SBSPNode* root) {
 	if (!root)
 		return nullptr;
 
-	if (root->isLeaf) {
-		return root->window == pWindow ? root : nullptr;
-	}
+	if (root->isLeaf)
+		return root->target == target ? root : nullptr;
 
-	auto leftResult = getNodeFromWindow(pWindow, root->left.get());
+	auto leftResult = getNodeFromTarget(target, root->left.get());
 	if (leftResult)
 		return leftResult;
 
-	return getNodeFromWindow(pWindow, root->right.get());
+	return getNodeFromTarget(target, root->right.get());
 }
 
-SBSPNode* CBSPLayout::findLargestLeafNode(SBSPNode* node) {
+SBSPNode* CBSPAlgorithm::getParentNode(SBSPNode* child, SBSPNode* root) {
+	if (!root || root->isLeaf)
+		return nullptr;
+
+	if (root->left.get() == child || root->right.get() == child)
+		return root;
+
+	auto leftResult = getParentNode(child, root->left.get());
+	if (leftResult)
+		return leftResult;
+
+	return getParentNode(child, root->right.get());
+}
+
+SBSPNode* CBSPAlgorithm::findLargestLeafNode(SBSPNode* node) {
 	if (!node || node->isLeaf)
 		return node;
 
-	// Recursively find largest leaf
 	auto leftLargest = findLargestLeafNode(node->left.get());
 	auto rightLargest = findLargestLeafNode(node->right.get());
 
 	if (!leftLargest) return rightLargest;
 	if (!rightLargest) return leftLargest;
 
-	// Compare sizes
 	float leftSize = leftLargest->box.w * leftLargest->box.h;
 	float rightSize = rightLargest->box.w * rightLargest->box.h;
+
+	Log::logger->log(Log::INFO, "[BSP] findLargest: left box({},{} {}x{}) area={}, right box({},{} {}x{}) area={}, picking {}",
+		leftLargest->box.x, leftLargest->box.y, leftLargest->box.w, leftLargest->box.h, leftSize,
+		rightLargest->box.x, rightLargest->box.y, rightLargest->box.w, rightLargest->box.h, rightSize,
+		leftSize > rightSize ? "left" : "right");
 
 	return leftSize > rightSize ? leftLargest : rightLargest;
 }
 
-void CBSPLayout::splitNode(SBSPNode* node, PHLWINDOW newWindow) {
+void CBSPAlgorithm::splitNode(SBSPNode* node, SP<Layout::ITarget> newTarget) {
 	if (!node || !node->isLeaf)
 		return;
 
-	// Determine split direction based on longest side
 	bool splitHorizontally = node->box.w < node->box.h;
 	node->splitDir = splitHorizontally ? SplitDirection::HORIZONTAL : SplitDirection::VERTICAL;
 	node->isLeaf = false;
 
-	// Create two leaf nodes
-	node->left = std::make_unique<SBSPNode>(node->window);
-	node->right = std::make_unique<SBSPNode>(newWindow);
+	node->left = std::make_unique<SBSPNode>(node->target);
+	node->right = std::make_unique<SBSPNode>(newTarget);
 
-	// Distribute space
 	if (splitHorizontally) {
 		node->left->box = CBox(node->box.pos(), {node->box.w, node->box.h * node->splitRatio});
 		node->right->box = CBox({node->box.x, node->box.y + node->box.h * node->splitRatio},
@@ -124,14 +87,13 @@ void CBSPLayout::splitNode(SBSPNode* node, PHLWINDOW newWindow) {
 							{node->box.w * (1.0f - node->splitRatio), node->box.h});
 	}
 
-	node->window = nullptr; // Parent node no longer holds window
+	node->target = nullptr;
 }
 
-void CBSPLayout::recalculateTreeBoxes(SBSPNode* node) {
+void CBSPAlgorithm::recalculateTreeBoxes(SBSPNode* node) {
 	if (!node || node->isLeaf)
 		return;
 
-	// Recalculate child boxes based on current node's box and split
 	if (node->splitDir == SplitDirection::HORIZONTAL) {
 		if (node->left) {
 			node->left->box = CBox(node->box.pos(),
@@ -152,242 +114,258 @@ void CBSPLayout::recalculateTreeBoxes(SBSPNode* node) {
 		}
 	}
 
-	// Recursively recalculate children
 	recalculateTreeBoxes(node->left.get());
 	recalculateTreeBoxes(node->right.get());
 }
 
-SBSPNode* CBSPLayout::removeWindowFromTree(SBSPNode* node, PHLWINDOW window, bool& found) {
+SBSPNode* CBSPAlgorithm::removeTargetFromTree(SBSPNode* node, SP<Layout::ITarget> target, bool& found) {
 	if (!node)
 		return nullptr;
 
 	if (node->isLeaf) {
-		if (node->window == window) {
+		if (node->target == target) {
 			found = true;
-			return nullptr; // Remove this leaf
+			return nullptr;
 		}
 		return node;
 	}
 
-	// Recursively search in children
-	auto newLeft = removeWindowFromTree(node->left.get(), window, found);
+	auto newLeft = removeTargetFromTree(node->left.get(), target, found);
 	if (!found) {
-		auto newRight = removeWindowFromTree(node->right.get(), window, found);
+		auto newRight = removeTargetFromTree(node->right.get(), target, found);
 		if (!found)
-			return node; // Window not found in this subtree
-
-		// Window was in right child
-		if (!newRight) {
-			// Right child was removed, promote left child
-			// Move ownership from left child before destroying it
-			if (node->left) {
-				auto leftChild = std::move(node->left);
-				node->isLeaf = leftChild->isLeaf;
-				node->window = leftChild->window;
-				node->splitDir = leftChild->splitDir;
-				node->splitRatio = leftChild->splitRatio;
-				node->left = std::move(leftChild->left);
-				node->right = std::move(leftChild->right);
-			}
 			return node;
+
+		// Target was in right child, promote left
+		if (!newRight && node->left) {
+			auto leftChild = std::move(node->left);
+			node->isLeaf = leftChild->isLeaf;
+			node->target = leftChild->target;
+			node->splitDir = leftChild->splitDir;
+			node->splitRatio = leftChild->splitRatio;
+			node->left = std::move(leftChild->left);
+			node->right = std::move(leftChild->right);
 		}
 	} else {
-		// Window was in left child
-		if (!newLeft) {
-			// Left child was removed, promote right child
-			// Move ownership from right child before destroying it
-			if (node->right) {
-				auto rightChild = std::move(node->right);
-				node->isLeaf = rightChild->isLeaf;
-				node->window = rightChild->window;
-				node->splitDir = rightChild->splitDir;
-				node->splitRatio = rightChild->splitRatio;
-				node->left = std::move(rightChild->left);
-				node->right = std::move(rightChild->right);
-			}
-			return node;
+		// Target was in left child, promote right
+		if (!newLeft && node->right) {
+			auto rightChild = std::move(node->right);
+			node->isLeaf = rightChild->isLeaf;
+			node->target = rightChild->target;
+			node->splitDir = rightChild->splitDir;
+			node->splitRatio = rightChild->splitRatio;
+			node->left = std::move(rightChild->left);
+			node->right = std::move(rightChild->right);
 		}
 	}
 
 	return node;
 }
 
-void CBSPLayout::onWindowCreatedTiling(PHLWINDOW pWindow, eDirection direction) {
-	if (pWindow->m_isFloating)
+void CBSPAlgorithm::collectLeaves(SBSPNode* node, std::vector<SBSPNode*>& leaves) {
+	if (!node)
 		return;
 
-	auto workspace = pWindow->m_workspace;
-	if (!workspace)
+	if (node->isLeaf) {
+		leaves.push_back(node);
+		return;
+	}
+
+	collectLeaves(node->left.get(), leaves);
+	collectLeaves(node->right.get(), leaves);
+}
+
+SBSPNode* CBSPAlgorithm::findAdjacentLeaf(SBSPNode* targetNode, Math::eDirection dir, SBSPNode* root) {
+	if (!targetNode || !root)
+		return nullptr;
+
+	// Collect all leaves and find by geometric adjacency
+	std::vector<SBSPNode*> leaves;
+	collectLeaves(root, leaves);
+
+	auto& box = targetNode->box;
+	float cx = box.x + box.w / 2.0f;
+	float cy = box.y + box.h / 2.0f;
+
+	SBSPNode* best = nullptr;
+	float bestDist = std::numeric_limits<float>::max();
+
+	for (auto* leaf : leaves) {
+		if (leaf == targetNode)
+			continue;
+
+		auto& lb = leaf->box;
+		float lcx = lb.x + lb.w / 2.0f;
+		float lcy = lb.y + lb.h / 2.0f;
+
+		bool valid = false;
+		switch (dir) {
+			case Math::eDirection::DIRECTION_LEFT:  valid = lcx < cx; break;
+			case Math::eDirection::DIRECTION_RIGHT: valid = lcx > cx; break;
+			case Math::eDirection::DIRECTION_UP:    valid = lcy < cy; break;
+			case Math::eDirection::DIRECTION_DOWN:  valid = lcy > cy; break;
+			default: break;
+		}
+
+		if (!valid)
+			continue;
+
+		float dist = (lcx - cx) * (lcx - cx) + (lcy - cy) * (lcy - cy);
+		if (dist < bestDist) {
+			bestDist = dist;
+			best = leaf;
+		}
+	}
+
+	return best;
+}
+
+// --- IModeAlgorithm implementation ---
+
+void CBSPAlgorithm::newTarget(SP<Layout::ITarget> target) {
+	if (!m_parent.lock())
 		return;
 
-	CBox workspaceBox = getWorkspaceBox(workspace);
+	CBox workArea = m_parent.lock()->space()->workArea();
 
-	// Check if this workspace has a tree
-	auto it = m_mWorkspaceRoots.find(workspace);
-
-	if (it == m_mWorkspaceRoots.end()) {
-		// First window on workspace
-		auto newRoot = std::make_unique<SBSPNode>(pWindow);
-		newRoot->box = workspaceBox;
-		m_mWorkspaceRoots[workspace] = std::move(newRoot);
-		applyNodeGeometry(pWindow, workspaceBox);
+	if (!m_root) {
+		Log::logger->log(Log::INFO, "[BSP] newTarget: first window, workArea=({},{} {}x{})", workArea.x, workArea.y, workArea.w, workArea.h);
+		m_root = std::make_unique<SBSPNode>(target);
+		m_root->box = workArea;
+		target->setPositionGlobal(workArea);
 	} else {
-		// Find largest window and split it
-		SBSPNode* largestNode = findLargestLeafNode(it->second.get());
-
+		SBSPNode* largestNode = findLargestLeafNode(m_root.get());
 		if (largestNode) {
-			splitNode(largestNode, pWindow);
-			applyTreeGeometry(it->second.get());
+			Log::logger->log(Log::INFO, "[BSP] newTarget: splitting largest at ({},{} {}x{}), area={}",
+				largestNode->box.x, largestNode->box.y, largestNode->box.w, largestNode->box.h,
+				largestNode->box.w * largestNode->box.h);
+			splitNode(largestNode, target);
+			applyTreeGeometry(m_root.get());
 		}
 	}
 }
 
-bool CBSPLayout::isWindowTiled(PHLWINDOW pWindow) {
-	auto workspace = pWindow->m_workspace;
-	if (!workspace)
-		return false;
-
-	auto it = m_mWorkspaceRoots.find(workspace);
-	if (it == m_mWorkspaceRoots.end())
-		return false;
-
-	return getNodeFromWindow(pWindow, it->second.get()) != nullptr;
+void CBSPAlgorithm::movedTarget(SP<Layout::ITarget> target, std::optional<Vector2D> focalPoint) {
+	// Treat same as newTarget
+	newTarget(target);
 }
 
-void CBSPLayout::onWindowRemovedTiling(PHLWINDOW pWindow) {
-	auto workspace = pWindow->m_workspace;
-	if (!workspace)
-		return;
-
-	auto it = m_mWorkspaceRoots.find(workspace);
-	if (it == m_mWorkspaceRoots.end())
+void CBSPAlgorithm::removeTarget(SP<Layout::ITarget> target) {
+	if (!m_root)
 		return;
 
 	bool found = false;
-	auto newRoot = removeWindowFromTree(it->second.get(), pWindow, found);
+	auto newRoot = removeTargetFromTree(m_root.get(), target, found);
 
 	if (!newRoot) {
-		// Tree is empty, remove it
-		m_mWorkspaceRoots.erase(it);
+		m_root.reset();
 	} else if (found) {
-		// Recalculate all box geometries in the tree
-		recalculateTreeBoxes(it->second.get());
-		// Apply the updated geometry to all windows
-		applyTreeGeometry(it->second.get());
+		recalculateTreeBoxes(m_root.get());
+		applyTreeGeometry(m_root.get());
 	}
 }
 
-void CBSPLayout::recalculateMonitor(const MONITORID& monid) {
-	const auto PMONITOR = g_pCompositor->getMonitorFromID(monid);
-	if (!PMONITOR)
+void CBSPAlgorithm::resizeTarget(const Vector2D& delta, SP<Layout::ITarget> target, Layout::eRectCorner corner) {
+	if (!m_root || !target)
 		return;
 
-	// Recalculate all workspaces on this monitor
-	for (auto& [workspace, root] : m_mWorkspaceRoots) {
-		if (!workspace || workspace->m_monitor != PMONITOR)
-			continue;
+	auto* node = getNodeFromTarget(target, m_root.get());
+	if (!node)
+		return;
 
-		// Update root box
-		root->box = getWorkspaceBox(workspace);
+	auto* parent = getParentNode(node, m_root.get());
+	if (!parent)
+		return;
 
-		// Recalculate all boxes in the tree
-		recalculateTreeBoxes(root.get());
-
-		// Apply the updated geometry
-		applyTreeGeometry(root.get());
+	// Adjust split ratio based on delta
+	if (parent->splitDir == SplitDirection::HORIZONTAL) {
+		float adjustment = delta.y / parent->box.h;
+		if (parent->left.get() == node)
+			parent->splitRatio += adjustment;
+		else
+			parent->splitRatio -= adjustment;
+	} else {
+		float adjustment = delta.x / parent->box.w;
+		if (parent->left.get() == node)
+			parent->splitRatio += adjustment;
+		else
+			parent->splitRatio -= adjustment;
 	}
+
+	parent->splitRatio = std::clamp(parent->splitRatio, 0.1f, 0.9f);
+
+	recalculateTreeBoxes(m_root.get());
+	applyTreeGeometry(m_root.get());
 }
 
-void CBSPLayout::recalculateWindow(PHLWINDOW pWindow) {
-	auto workspace = pWindow->m_workspace;
-	if (!workspace)
+void CBSPAlgorithm::recalculate() {
+	if (!m_root || !m_parent.lock())
 		return;
 
-	auto it = m_mWorkspaceRoots.find(workspace);
-	if (it == m_mWorkspaceRoots.end())
+	m_root->box = m_parent.lock()->space()->workArea();
+	recalculateTreeBoxes(m_root.get());
+	applyTreeGeometry(m_root.get());
+}
+
+void CBSPAlgorithm::swapTargets(SP<Layout::ITarget> a, SP<Layout::ITarget> b) {
+	if (!m_root)
 		return;
 
-	// Update root box and recalculate tree
-	it->second->box = getWorkspaceBox(workspace);
-	recalculateTreeBoxes(it->second.get());
-	applyTreeGeometry(it->second.get());
-}
+	auto* nodeA = getNodeFromTarget(a, m_root.get());
+	auto* nodeB = getNodeFromTarget(b, m_root.get());
 
-void CBSPLayout::resizeActiveWindow(const Vector2D& delta, eRectCorner corner, PHLWINDOW pWindow) {
-	if (!pWindow)
-		pWindow = g_pCompositor->m_lastWindow.lock();
-
-	if (!pWindow)
+	if (!nodeA || !nodeB)
 		return;
 
-	// For now, just recalculate
-	// A full implementation would adjust split ratios
-	recalculateWindow(pWindow);
+	std::swap(nodeA->target, nodeB->target);
+	applyTreeGeometry(m_root.get());
 }
 
-void CBSPLayout::fullscreenRequestForWindow(PHLWINDOW pWindow, const eFullscreenMode CURRENT_EFFECTIVE_MODE, const eFullscreenMode EFFECTIVE_MODE) {
-	// Hyprland handles fullscreen internally, we just need to restore layout after
-	if (EFFECTIVE_MODE == FSMODE_NONE)
-		recalculateWindow(pWindow);
-}
-
-std::any CBSPLayout::layoutMessage(SLayoutMessageHeader header, std::string message) {
-	// Can implement custom commands here (e.g., "rotate", "balance")
-	return std::any();
-}
-
-SWindowRenderLayoutHints CBSPLayout::requestRenderHints(PHLWINDOW pWindow) {
-	return SWindowRenderLayoutHints();
-}
-
-void CBSPLayout::switchWindows(PHLWINDOW pWindow, PHLWINDOW pWindow2) {
-	auto workspace = pWindow->m_workspace;
-	if (!workspace)
+void CBSPAlgorithm::moveTargetInDirection(SP<Layout::ITarget> t, Math::eDirection dir, bool silent) {
+	if (!m_root || !t)
 		return;
 
-	auto it = m_mWorkspaceRoots.find(workspace);
-	if (it == m_mWorkspaceRoots.end())
+	auto* node = getNodeFromTarget(t, m_root.get());
+	if (!node)
 		return;
 
-	auto node1 = getNodeFromWindow(pWindow, it->second.get());
-	auto node2 = getNodeFromWindow(pWindow2, it->second.get());
-
-	if (!node1 || !node2)
+	auto* adjacent = findAdjacentLeaf(node, dir, m_root.get());
+	if (!adjacent)
 		return;
 
-	std::swap(node1->window, node2->window);
-	applyTreeGeometry(it->second.get());
+	std::swap(node->target, adjacent->target);
+	applyTreeGeometry(m_root.get());
 }
 
-void CBSPLayout::moveWindowTo(PHLWINDOW pWindow, const std::string& direction, bool silent) {
-	// Simplified: not implemented
-	// Would need to swap with window in specified direction
+SP<Layout::ITarget> CBSPAlgorithm::getNextCandidate(SP<Layout::ITarget> old) {
+	if (!m_root)
+		return nullptr;
+
+	std::vector<SBSPNode*> leaves;
+	collectLeaves(m_root.get(), leaves);
+
+	if (leaves.empty())
+		return nullptr;
+
+	if (!old)
+		return leaves.front()->target;
+
+	// Find current and return the next one
+	for (size_t i = 0; i < leaves.size(); i++) {
+		if (leaves[i]->target == old) {
+			size_t next = (i + 1) % leaves.size();
+			return leaves[next]->target;
+		}
+	}
+
+	return leaves.front()->target;
 }
 
-void CBSPLayout::alterSplitRatio(PHLWINDOW pWindow, float delta, bool exact) {
-	// Would adjust the split ratio of parent node
-	recalculateWindow(pWindow);
+std::expected<void, std::string> CBSPAlgorithm::layoutMsg(const std::string_view& sv) {
+	// Can implement custom commands (e.g., "rotate", "balance") here
+	return std::unexpected("unknown command");
 }
 
-std::string CBSPLayout::getLayoutName() {
-	return "bsp";
-}
-
-void CBSPLayout::replaceWindowDataWith(PHLWINDOW from, PHLWINDOW to) {
-	auto workspace = from->m_workspace;
-	if (!workspace)
-		return;
-
-	auto it = m_mWorkspaceRoots.find(workspace);
-	if (it == m_mWorkspaceRoots.end())
-		return;
-
-	auto node = getNodeFromWindow(from, it->second.get());
-	if (node)
-		node->window = to;
-}
-
-Vector2D CBSPLayout::predictSizeForNewWindowTiled() {
-	// Return a reasonable default
-	return {600, 400};
+std::optional<Vector2D> CBSPAlgorithm::predictSizeForNewTarget() {
+	return Vector2D{600, 400};
 }

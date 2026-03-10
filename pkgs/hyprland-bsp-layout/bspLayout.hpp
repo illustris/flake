@@ -1,7 +1,6 @@
 #pragma once
 
-#include <hyprland/src/layout/IHyprLayout.hpp>
-#include <map>
+#include <hyprland/src/layout/algorithm/TiledAlgorithm.hpp>
 #include <memory>
 
 enum class SplitDirection {
@@ -11,7 +10,7 @@ enum class SplitDirection {
 
 struct SBSPNode {
 	bool isLeaf = true;
-	PHLWINDOW window = nullptr;
+	SP<Layout::ITarget> target = nullptr;
 
 	// For non-leaf nodes
 	SplitDirection splitDir;
@@ -23,43 +22,41 @@ struct SBSPNode {
 	CBox box;
 
 	SBSPNode() = default;
-	SBSPNode(PHLWINDOW w) : window(w) {}
+	SBSPNode(SP<Layout::ITarget> t) : target(t) {}
 };
 
-class CBSPLayout : public IHyprLayout {
+class CBSPAlgorithm : public Layout::ITiledAlgorithm {
 public:
-	virtual ~CBSPLayout();
+	CBSPAlgorithm() = default;
+	virtual ~CBSPAlgorithm() = default;
 
-	// Required virtual methods from IHyprLayout
-	virtual void onEnable() override;
-	virtual void onDisable() override;
-	virtual void onWindowCreatedTiling(PHLWINDOW, eDirection direction) override;
-	virtual bool isWindowTiled(PHLWINDOW) override;
-	virtual void onWindowRemovedTiling(PHLWINDOW) override;
-	virtual void recalculateMonitor(const MONITORID&) override;
-	virtual void recalculateWindow(PHLWINDOW) override;
-	virtual void resizeActiveWindow(const Vector2D&, eRectCorner corner, PHLWINDOW) override;
-	virtual void fullscreenRequestForWindow(PHLWINDOW, const eFullscreenMode, const eFullscreenMode) override;
-	virtual std::any layoutMessage(SLayoutMessageHeader, std::string) override;
-	virtual SWindowRenderLayoutHints requestRenderHints(PHLWINDOW) override;
-	virtual void switchWindows(PHLWINDOW, PHLWINDOW) override;
-	virtual void moveWindowTo(PHLWINDOW, const std::string& direction, bool silent) override;
-	virtual void alterSplitRatio(PHLWINDOW, float delta, bool exact) override;
-	virtual std::string getLayoutName() override;
-	virtual void replaceWindowDataWith(PHLWINDOW from, PHLWINDOW to) override;
-	virtual Vector2D predictSizeForNewWindowTiled() override;
+	// IModeAlgorithm
+	virtual void newTarget(SP<Layout::ITarget> target) override;
+	virtual void movedTarget(SP<Layout::ITarget> target, std::optional<Vector2D> focalPoint = std::nullopt) override;
+	virtual void removeTarget(SP<Layout::ITarget> target) override;
+	virtual void resizeTarget(const Vector2D& delta, SP<Layout::ITarget> target, Layout::eRectCorner corner = Layout::CORNER_NONE) override;
+	virtual void recalculate() override;
+	virtual void swapTargets(SP<Layout::ITarget> a, SP<Layout::ITarget> b) override;
+	virtual void moveTargetInDirection(SP<Layout::ITarget> t, Math::eDirection dir, bool silent) override;
+
+	// ITiledAlgorithm
+	virtual SP<Layout::ITarget> getNextCandidate(SP<Layout::ITarget> old) override;
+
+	// Optional overrides
+	virtual std::expected<void, std::string> layoutMsg(const std::string_view& sv) override;
+	virtual std::optional<Vector2D> predictSizeForNewTarget() override;
 
 private:
-	// Map of workspace ID to root node
-	std::map<PHLWORKSPACE, std::unique_ptr<SBSPNode>> m_mWorkspaceRoots;
+	std::unique_ptr<SBSPNode> m_root;
 
 	// Helper methods
-	SBSPNode* getNodeFromWindow(PHLWINDOW, SBSPNode* root);
+	SBSPNode* getNodeFromTarget(SP<Layout::ITarget> target, SBSPNode* root);
+	SBSPNode* getParentNode(SBSPNode* child, SBSPNode* root);
 	SBSPNode* findLargestLeafNode(SBSPNode* node);
-	void splitNode(SBSPNode* node, PHLWINDOW newWindow);
-	void applyNodeGeometry(PHLWINDOW window, const CBox& box);
+	void splitNode(SBSPNode* node, SP<Layout::ITarget> newTarget);
 	void applyTreeGeometry(SBSPNode* node);
 	void recalculateTreeBoxes(SBSPNode* node);
-	SBSPNode* removeWindowFromTree(SBSPNode* node, PHLWINDOW window, bool& found);
-	CBox getWorkspaceBox(PHLWORKSPACE workspace);
+	SBSPNode* removeTargetFromTree(SBSPNode* node, SP<Layout::ITarget> target, bool& found);
+	void collectLeaves(SBSPNode* node, std::vector<SBSPNode*>& leaves);
+	SBSPNode* findAdjacentLeaf(SBSPNode* target, Math::eDirection dir, SBSPNode* root);
 };

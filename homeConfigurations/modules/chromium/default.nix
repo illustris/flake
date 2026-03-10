@@ -47,6 +47,9 @@
 				# single-file
 				(ext "mpiodijhokgodhhofbcjdecpffjipkle" "1.22.81"
 					"sha256-z7lDSffJbld9ssL2ETn5umLpHes2Y/iSvni8gTjjyDs=")
+				# claude
+				#(ext "fcoeoabgfenejglbffodgkkbkcdhcgfn" "1.0.36"
+				#	"sha256-oKtCxdMXgIqioAZ2EF1kSsp2YW/2U5IZuIAHdn4M0E0=")
 			];
 		};
 	};
