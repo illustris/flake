@@ -13,14 +13,19 @@ let
 		name = "layout-toggle";
 		runtimeInputs = [ pkgs.hyprland pkgs.jq ];
 		text = ''
+			layouts=(scrolling dwindle master bsp)
 			ws_json=$(hyprctl activeworkspace -j)
 			ws_id=$(echo "$ws_json" | jq -r '.id')
 			current=$(echo "$ws_json" | jq -r '.tiledLayout')
-			if [ "$current" = "scrolling" ]; then
-				hyprctl keyword workspace "$ws_id",layout:dwindle
-			else
-				hyprctl keyword workspace "$ws_id",layout:scrolling
-			fi
+			for i in "''${!layouts[@]}"; do
+				if [ "''${layouts[$i]}" = "$current" ]; then
+					next=$(( (i + 1) % ''${#layouts[@]} ))
+					hyprctl keyword workspace "$ws_id",layout:"''${layouts[$next]}"
+					exit 0
+				fi
+			done
+			# Unknown layout, reset to first
+			hyprctl keyword workspace "$ws_id",layout:"''${layouts[0]}"
 		'';
 	};
 	smart-focus = pkgs.writeShellApplication {
