@@ -187,4 +187,11 @@ rec {
 			)
 			targets
 		);
+
+	# Similar to replaceVars, but works on strings instead of files.
+	# Does not require pkgs.
+	replaceVarsInString = vars: str:
+		lib.replaceStrings
+			(map (n: "@${n}@") (lib.attrNames vars))
+			(map toString    (lib.attrValues vars));
 }
