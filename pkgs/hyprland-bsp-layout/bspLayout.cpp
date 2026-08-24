@@ -298,7 +298,7 @@ void CBSPAlgorithm::resizeTarget(const Vector2D& delta, SP<Layout::ITarget> targ
 	applyTreeGeometry(m_root.get());
 }
 
-void CBSPAlgorithm::recalculate() {
+void CBSPAlgorithm::recalculate(Layout::eRecalculateReason) {
 	if (!m_root || !m_parent.lock())
 		return;
 
@@ -361,9 +361,9 @@ SP<Layout::ITarget> CBSPAlgorithm::getNextCandidate(SP<Layout::ITarget> old) {
 	return leaves.front()->target;
 }
 
-std::expected<void, std::string> CBSPAlgorithm::layoutMsg(const std::string_view& sv) {
+Config::ErrorResult CBSPAlgorithm::layoutMsg(const std::string_view& sv) {
 	// Can implement custom commands (e.g., "rotate", "balance") here
-	return std::unexpected("unknown command");
+	return std::unexpected(Config::SConfigError{"unknown command"});
 }
 
 std::optional<Vector2D> CBSPAlgorithm::predictSizeForNewTarget() {
