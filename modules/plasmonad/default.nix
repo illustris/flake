@@ -10,7 +10,6 @@ with lib;
 	services = {
 		xserver = {
 			enable = true;
-			desktopManager.plasma5.enable = true;
 			windowManager = {
 				xmonad = {
 					enable = true;
@@ -19,6 +18,7 @@ with lib;
 				};
 			};
 		};
+		desktopManager.plasma6.enable = true;
 		displayManager = {
 			defaultSession = "plasma";
 			sddm.enable = true;
