@@ -66,7 +66,7 @@
 			env=GDK_SCALE,2
 			env=NIXOS_OZONE_WL,1
 			env=QT_QPA_PLATFORM,wayland
-			env=QT_QPA_PLATFORMTHEME,${pkgs.qt6ct}/bin/qt6ct
+			env=QT_QPA_PLATFORMTHEME,${pkgs.qt6Packages.qt6ct}/bin/qt6ct
 			env=WLR_NO_HARDWARE_CURSORS,1
 			env=XCURSOR_SIZE,32
 
