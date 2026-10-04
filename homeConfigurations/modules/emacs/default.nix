@@ -16,7 +16,6 @@
 			cmake-mode
 			csv-mode
 			color-theme-modern
-			docker-compose-mode
 			dockerfile-mode
 			dtrace-script-mode
 			gitlab-ci-mode
