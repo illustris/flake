@@ -1,0 +1,150 @@
+--- a/include/modules/hyprland/backend.hpp
++++ b/include/modules/hyprland/backend.hpp
+@@ -1,5 +1,6 @@
+ #pragma once
+ 
++#include <atomic>
+ #include <filesystem>
+ #include <list>
+ #include <mutex>
+@@ -43,10 +44,11 @@
+ 
+   std::thread ipcThread_;
+   std::mutex callbackMutex_;
++  std::mutex socketMutex_;
+   util::JsonParser parser_;
+   std::list<std::pair<std::string, EventHandler*>> callbacks_;
+-  int socketfd_;  // the hyprland socket file descriptor
++  int socketfd_ = -1;  // the hyprland socket file descriptor
+   pid_t socketOwnerPid_;
+-  bool running_ = true;  // the ipcThread will stop running when this is false
++  std::atomic<bool> running_ = true;  // the ipcThread will stop running when this is false
+ };
+ };  // namespace waybar::modules::hyprland
+--- a/src/modules/hyprland/backend.cpp
++++ b/src/modules/hyprland/backend.cpp
+@@ -56,14 +56,11 @@
+ 
+   running_ = false;
+   spdlog::info("Hyprland IPC stopping...");
+-  if (socketfd_ != -1) {
+-    spdlog::trace("Shutting down socket");
+-    if (shutdown(socketfd_, SHUT_RDWR) == -1) {
+-      spdlog::error("Hyprland IPC: Couldn't shutdown socket");
+-    }
+-    spdlog::trace("Closing socket");
+-    if (close(socketfd_) == -1) {
+-      spdlog::error("Hyprland IPC: Couldn't close socket");
++  {
++    std::lock_guard lock(socketMutex_);
++    if (socketfd_ != -1) {
++      // Wake the reader; the listener owns and closes the descriptor.
++      shutdown(socketfd_, SHUT_RDWR);
+     }
+   }
+   ipcThread_.join();
+@@ -85,14 +82,7 @@
+ 
+   spdlog::info("Hyprland IPC starting");
+ 
+-  struct sockaddr_un addr;
+-  socketfd_ = socket(AF_UNIX, SOCK_STREAM, 0);
+-
+-  if (socketfd_ == -1) {
+-    spdlog::error("Hyprland IPC: socketfd failed");
+-    return;
+-  }
+-
++  struct sockaddr_un addr = {};
+   addr.sun_family = AF_UNIX;
+ 
+   auto socketPath = IPC::getSocketFolder(his) / ".socket2.sock";
+@@ -100,40 +90,58 @@
+ 
+   addr.sun_path[sizeof(addr.sun_path) - 1] = 0;
+ 
+-  int l = sizeof(struct sockaddr_un);
+-
+-  if (connect(socketfd_, (struct sockaddr*)&addr, l) == -1) {
+-    spdlog::error("Hyprland IPC: Unable to connect?");
+-    return;
+-  }
+-  auto* file = fdopen(socketfd_, "r");
+-  if (file == nullptr) {
+-    spdlog::error("Hyprland IPC: Couldn't open file descriptor");
+-    return;
+-  }
++  bool resync = false;
+   while (running_) {
+-    std::array<char, 1024> buffer;  // Hyprland socket2 events are max 1024 bytes
+-
+-    auto* receivedCharPtr = fgets(buffer.data(), buffer.size(), file);
+-
+-    if (receivedCharPtr == nullptr) {
+-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
++    const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
++    if (fd == -1) {
++      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+       continue;
+     }
+-
+-    std::string messageReceived(buffer.data());
+-    messageReceived = messageReceived.substr(0, messageReceived.find_first_of('\n'));
+-    spdlog::debug("hyprland IPC received {}", messageReceived);
+-
+-    try {
+-      parseIPC(messageReceived);
+-    } catch (std::exception& e) {
+-      spdlog::warn("Failed to parse IPC message: {}, reason: {}", messageReceived, e.what());
+-    } catch (...) {
+-      throw;
++    {
++      std::lock_guard lock(socketMutex_);
++      if (!running_) {
++        close(fd);
++        break;
++      }
++      socketfd_ = fd;
++    }
++    FILE* file = nullptr;
++    if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
++      file = fdopen(fd, "r");
++    }
++    if (file != nullptr) {
++      // Missed events cannot be replayed; rebuild module state from socket1.
++      if (resync) {
++        try {
++          parseIPC("configreloaded>>");
++        } catch (const std::exception& e) {
++          spdlog::warn("Hyprland IPC resync failed: {}", e.what());
++        }
++      }
++      resync = true;
++      while (running_) {
++        std::array<char, 1024> buffer;
++        if (fgets(buffer.data(), buffer.size(), file) == nullptr) break;
++        std::string messageReceived(buffer.data());
++        messageReceived = messageReceived.substr(0, messageReceived.find_first_of('\n'));
++        spdlog::debug("hyprland IPC received {}", messageReceived);
++        try {
++          parseIPC(messageReceived);
++        } catch (const std::exception& e) {
++          spdlog::warn("Failed to parse IPC message: {}, reason: {}", messageReceived, e.what());
++        }
++      }
++    }
++    {
++      std::lock_guard lock(socketMutex_);
++      if (file != nullptr) fclose(file);
++      else close(fd);
++      socketfd_ = -1;
++    }
++    if (running_) {
++      spdlog::warn("Hyprland IPC disconnected, reconnecting");
++      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+     }
+-
+-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+   }
+   spdlog::debug("Hyprland IPC stopped");
+ }

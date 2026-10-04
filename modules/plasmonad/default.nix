@@ -28,6 +28,7 @@ with lib;
 	systemd.user.services = {
 		plasma-custom-wm = {
 			wantedBy = [ "plasma-workspace.target" ];
+			partOf = [ "plasma-workspace.target" ];
 			before = [ "plasma-workspace.target" ];
 			script = "unset __NIXOS_SET_ENVIRONMENT_DONE && . /run/current-system/etc/profile && xmonad";
 			serviceConfig.Slice = "session.slice";

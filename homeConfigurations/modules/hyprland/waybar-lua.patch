@@ -1,0 +1,45 @@
+--- a/src/modules/hyprland/workspace.cpp
++++ b/src/modules/hyprland/workspace.cpp
+@@ -1,4 +1,5 @@
+ #include <json/value.h>
++#include <json/writer.h>
+ #include <spdlog/spdlog.h>
+ 
+ #include <memory>
+@@ -69,22 +70,20 @@
+ bool Workspace::handleClicked(GdkEventButton* bt) const {
+   if (bt->type == GDK_BUTTON_PRESS) {
+     try {
+-      if (id() > 0) {  // normal
+-        if (m_workspaceManager.moveToMonitor()) {
+-          m_ipc.getSocket1Reply("dispatch focusworkspaceoncurrentmonitor " + std::to_string(id()));
+-        } else {
+-          m_ipc.getSocket1Reply("dispatch workspace " + std::to_string(id()));
+-        }
+-      } else if (!isSpecial()) {  // named (this includes persistent)
+-        if (m_workspaceManager.moveToMonitor()) {
+-          m_ipc.getSocket1Reply("dispatch focusworkspaceoncurrentmonitor name:" + name());
+-        } else {
+-          m_ipc.getSocket1Reply("dispatch workspace name:" + name());
+-        }
+-      } else if (id() != -99) {  // named special
+-        m_ipc.getSocket1Reply("dispatch togglespecialworkspace " + name());
+-      } else {  // special
+-        m_ipc.getSocket1Reply("dispatch togglespecialworkspace");
++      // This host uses Hyprland's native Lua parser and movable workspaces.
++      const auto quote = [](const std::string& value) {
++        Json::StreamWriterBuilder writer;
++        writer["indentation"] = "";
++        return Json::writeString(writer, Json::Value(value));
++      };
++      if (isSpecial()) {
++        const auto specialName = id() == -99 ? "" : name();
++        m_ipc.getSocket1Reply("eval hl.dispatch(hl.dsp.workspace.toggle_special(" +
++                              quote(specialName) + "))");
++      } else {
++        const auto selector = id() > 0 ? std::to_string(id()) : "name:" + name();
++        m_ipc.getSocket1Reply("eval hl.dispatch(hl.dsp.focus({workspace=" + quote(selector) +
++                              ",on_current_monitor=true}))");
+       }
+       return true;
+     } catch (const std::exception& e) {

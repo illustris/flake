@@ -37,6 +37,21 @@
 			inherit self;
 		};
 
+		homeManagerModules.hyprland = ./homeConfigurations/modules/hyprland;
+		checks = genAttrs [ "x86_64-linux" "aarch64-linux" ] (system: let
+			pkgs = pkgsForSystem system;
+		in {
+			hyprland = pkgs.runCommand "hyprland-controller-tests" {
+				nativeBuildInputs = [ pkgs.lua pkgs.python3 ];
+			} (indent ''
+				export XDG_RUNTIME_DIR="$TMPDIR/runtime" HYPRLAND_INSTANCE_SIGNATURE=test
+				mkdir -p "$XDG_RUNTIME_DIR"
+				lua ${./homeConfigurations/modules/hyprland}/test.lua
+				PYTHONDONTWRITEBYTECODE=1 python ${./homeConfigurations/modules/hyprland}/test_panel.py
+				touch "$out"
+			'');
+		});
+
 		overlays = genAttrs (dirs ./overlays) (name:
 			import ./overlays/${name} self
 		);
