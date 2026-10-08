@@ -38,6 +38,7 @@ local windows, workspaces, events, pending, active, rules = {}, {}, {}, {}, nil,
 local providers = {}
 local monitors, clock, current_workspace, focused_monitor = {}, 0, nil, nil
 local dpms = false
+local focus_calls, group_changes, displace_on_group = 0, 0, false
 local function workspace(id)
     local ws = { id = id, name = tostring(id), special = false }
     function ws:get_groups()
@@ -63,7 +64,14 @@ local dialog = window(4, one, true)
 active = b
 local function group(w)
     local g = { windows = { w }, current = w }
-    function g:add(item) self.windows[#self.windows + 1] = item; item.group = self end
+    function g:add(item)
+        group_changes = group_changes + 1
+        self.windows[#self.windows + 1] = item; item.group = self
+        -- Native regrouping can select a different tab and displace focus.
+        if displace_on_group and active and active.workspace == item.workspace and not active.floating then
+            active = item
+        end
+    end
     function g:remove(item)
         for i, member in ipairs(self.windows) do
             if member == item then table.remove(self.windows, i); break end
@@ -110,11 +118,13 @@ hl = {
 function hl.dispatch(dsp)
     local args, w = dsp.args, dsp.args.window
     if dsp.op == "group" then
+        group_changes = group_changes + 1
         if w.group then
             local members = w.group.windows
             for _, member in ipairs(members) do member.group = nil end
         else group(w) end
     elseif dsp.op == "focus" then
+        focus_calls = focus_calls + 1
         if args.monitor then focused_monitor = args.monitor else active = w end
     elseif dsp.op == "move" then
         -- Model the native behavior: a move carries the group unless detached first.
@@ -149,9 +159,34 @@ local D = require("desktop")
 D.layout_set("tabbed")
 assert(a.group and a.group == b.group and a.group == c.group and not dialog.group)
 assert(active == b and #a.group.windows == 3)
+flush()
+assert(focus_calls == 0, "grouping and layout completion must leave correct focus alone")
+local focus_before, groups_before = focus_calls, group_changes
+for _ = 1, 30 do
+    events["window.update_rules"](); advance(30)
+end
+assert(active == b and focus_calls == focus_before, "title/rule refreshes must not refocus the selected tab")
+assert(group_changes == groups_before, "unchanged tabs must not be regrouped on refresh")
+D.layout_set("tabbed"); flush()
+assert(focus_calls == focus_before, "layout completion must not refocus an already active window")
+D.focus_step(1)
+assert(active == c and focus_calls == focus_before + 1, "keyboard navigation must still dispatch focus")
+active, displace_on_group = b, true
 local new = window(5, one)
 events["window.open"](); flush()
 assert(new.group == a.group and #a.group.windows == 4, "new window must join workspace tabs")
+assert(active == b and focus_calls == focus_before + 2, "regrouping must restore displaced focus exactly once")
+displace_on_group = false
+local closing = window(6, one)
+events["window.open"](); flush()
+focus_before, groups_before = focus_calls, group_changes
+closing.group:remove(closing); closing.mapped = false
+events["window.close"](); flush()
+assert(active == b and focus_calls == focus_before and group_changes == groups_before,
+    "closing an inactive tab must preserve focus and the remaining group")
+active = dialog
+events["window.update_rules"](); flush()
+assert(active == dialog and focus_calls == focus_before, "refresh must preserve a focused floating dialog")
 active = b; D.move("2"); flush()
 assert(b.workspace == two and not b.group)
 assert(a.workspace == one and c.workspace == one and new.workspace == one, "move must affect only selected tab")
@@ -273,7 +308,7 @@ events["config.reloaded"](); advance(100)
 assert(restore_calls == 1, "reload must restore layouts and call the host extension")
 D.on_wake, D.on_restore, monitors = nil, nil, {}
 
-print("PASS: shared Grid/Scrolling navigation, boundaries, focus recovery, deferred tabs, ratio, order, moves, monitors, host hooks, idle wake and reload state")
+print("PASS: refresh focus preservation, displaced focus restoration, shared Grid/Scrolling navigation, boundaries, focus recovery, deferred tabs, ratio, order, moves, monitors, host hooks, idle wake and reload state")
 return setmetatable({ desktop = D, events = events, one = one, two = two, advance = advance,
     clock = function() return clock end }, {
     __index = function(_, field) if field == "monitors" then return monitors end end,

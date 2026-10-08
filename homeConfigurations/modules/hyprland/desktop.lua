@@ -136,9 +136,12 @@ local function tabs(ws)
         return
     end
     local active = hl.get_active_window()
-    local root = windows[1]
+    local root, changed = windows[1], false
     -- One native group supplies real tabs, hiding and input isolation.
-    if not root.group then dispatch(hl.dsp.group.toggle({ window = root })) end
+    if not root.group then
+        dispatch(hl.dsp.group.toggle({ window = root }))
+        changed = true
+    end
     local group = root.group
     if not group then return end
     for i = 2, #windows do
@@ -146,9 +149,13 @@ local function tabs(ws)
         if w.group ~= group then
             if w.group then dispatch(hl.dsp.group.toggle({ window = w })) end
             group:add(w)
+            changed = true
         end
     end
-    if active and active.workspace == ws and not active.floating then
+    -- Title/rule updates also reconcile tabs. Only restore focus when actual
+    -- regrouping displaced it; redundant focus dispatches warp the cursor.
+    if changed and active and active.mapped and active.workspace == ws and not active.floating
+        and hl.get_active_window() ~= active then
         dispatch(hl.dsp.focus({ window = active }))
     end
 end
@@ -192,7 +199,8 @@ function D.layout_set(mode)
         if layout and layout.name and layout.name ~= layouts[mode] then later(15, finish); return end
         busy = true
         if mode == "tabbed" then tabs(ws) end
-        if active and active.mapped and active.workspace == ws and active_workspace() == ws then
+        if active and active.mapped and active.workspace == ws and active_workspace() == ws
+            and hl.get_active_window() ~= active then
             dispatch(hl.dsp.focus({ window = active }))
         end
         busy = false
