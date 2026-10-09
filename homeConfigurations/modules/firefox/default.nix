@@ -40,6 +40,9 @@
 					single-file
 					ublock-origin
 				];
+				# Firefox replaces this symlink and upgrades its JSON format on launch.
+				# Keep the Nix container definitions authoritative across rebuilds.
+				containersForce = true;
 				containers = {
 					personal = {
 						id = 3;
