@@ -20,7 +20,7 @@ def status(path, output):
         fields = line.split()
         if len(fields) != 5 or fields[:2] != ["panel", output]:
             continue
-        if fields[3] not in ("grid", "monocle", "tabbed", "scrolling"):
+        if fields[3] not in ("grid", "monocle", "scrolling"):
             continue
         try:
             candidate = float(fields[4])
@@ -28,7 +28,7 @@ def status(path, output):
             continue
         if 0.25 <= candidate <= 4:
             mode, ratio = fields[3], candidate
-    labels = {"grid": "Grid", "monocle": "Monocle", "tabbed": "Tabs", "scrolling": "Scroll"}
+    labels = {"grid": "Grid", "monocle": "Monocle", "scrolling": "Scroll"}
     text = f"Grid {ratio:.2f}:1" if mode == "grid" else labels[mode]
     return {
         "text": text,

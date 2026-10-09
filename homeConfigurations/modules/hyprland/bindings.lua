@@ -16,9 +16,7 @@ hl.config({
     misc = { disable_hyprland_logo = true, force_default_wallpaper = 0 },
     scrolling = { column_width = 0.5, follow_focus = true, wrap_focus = false,
         explicit_column_widths = "0.333, 0.5, 0.667, 1.0" },
-    group = { auto_group = false, groupbar = { height = 24, font_size = 12, font_family = "Noto Sans",
-        gradients = true, ["col.active"] = "rgb(00a6cc)", ["col.inactive"] = "rgb(31363b)",
-        text_color = "rgb(eff0f1)", rounding = 0, gaps_in = 1, gaps_out = 0 } },
+    group = { auto_group = false, groupbar = { enabled = false } },
 })
 for name, value in pairs({ GDK_SCALE = "1", GDK_DPI_SCALE = "1", QT_SCALE_FACTOR = "1",
     QT_AUTO_SCREEN_SCALE_FACTOR = "0", QT_QPA_PLATFORM = "wayland;xcb", QT_QPA_PLATFORMTHEME = "kde",
@@ -34,6 +32,7 @@ hl.window_rule({ name = "dialogs", match = { title = "^(Open File|Save File|Save
 command("SUPER + Return", "Open st", tools.terminal)
 command("SUPER + D", "Application launcher", tools.launcher)
 command("SUPER + CTRL + E", "Open Dolphin", tools.files)
+command("SUPER + H", "Show full window titles for 3 seconds", tools.headers)
 command("SUPER + V", "Clipboard history", tools.clipboard)
 command("SUPER + SHIFT + L", "Lock desktop", tools.lock)
 command("SUPER + SHIFT + slash", "Keyboard shortcuts", tools.help)
@@ -43,7 +42,7 @@ command("SHIFT + Print", "Screenshot all monitors", tools.screenshot .. " all")
 command("SUPER + SHIFT + Print", "Screenshot selection", tools.screenshot .. " region")
 command("SUPER + SHIFT + Q", "Session menu", tools.menu)
 bind("SUPER + SHIFT + C", "Close window", hl.dsp.window.close())
-for key, mode in pairs({ G = "grid", M = "monocle", T = "tabbed", R = "scrolling" }) do
+for key, mode in pairs({ G = "grid", M = "monocle", R = "scrolling" }) do
     bind("SUPER + " .. key, "Layout: " .. mode, function() D.layout_set(mode) end)
 end
 bind("SUPER + space", "Cycle layouts", D.layout_cycle)

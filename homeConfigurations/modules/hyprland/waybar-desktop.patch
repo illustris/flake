@@ -1,0 +1,58 @@
+--- a/meson.build
++++ b/meson.build
+@@ -318,6 +318,7 @@
+         'src/modules/hyprland/backend.cpp',
+         'src/modules/hyprland/language.cpp',
+         'src/modules/hyprland/submap.cpp',
++        'src/modules/hyprland/desktop_tabs.cpp',
+         'src/modules/hyprland/window.cpp',
+         'src/modules/hyprland/windowcount.cpp',
+         'src/modules/hyprland/workspace.cpp',
+--- a/src/factory.cpp
++++ b/src/factory.cpp
+@@ -33,6 +33,7 @@
+ #ifdef HAVE_HYPRLAND
+ #include "modules/hyprland/language.hpp"
+ #include "modules/hyprland/submap.hpp"
++#include "modules/hyprland/desktop_tabs.hpp"
+ #include "modules/hyprland/window.hpp"
+ #include "modules/hyprland/windowcount.hpp"
+ #include "modules/hyprland/workspaces.hpp"
+@@ -213,6 +214,9 @@
+     if (ref == "hyprland/language") {
+       return new waybar::modules::hyprland::Language(id, bar_, config_[name]);
+     }
++    if (ref == "hyprland/desktop-tabs") {
++      return new waybar::modules::hyprland::DesktopTabs(id, bar_, config_[name]);
++    }
+     if (ref == "hyprland/submap") {
+       return new waybar::modules::hyprland::Submap(id, bar_, config_[name]);
+     }
+--- a/src/modules/hyprland/workspace.cpp
++++ b/src/modules/hyprland/workspace.cpp
+@@ -240,6 +240,15 @@
+   addOrRemoveClass(styleContext, isVisible(), "visible");
+   addOrRemoveClass(styleContext, m_workspaceManager.getBarOutput() == output(), "hosting-monitor");
+ 
++  // Stable across bar instances and hotplug order; the label names the output
++  // as well, so equal palette colors never make ownership ambiguous.
++  unsigned color = 2166136261u;
++  for (unsigned char c : output()) color = (color ^ c) * 16777619u;
++  color %= 6;
++  for (unsigned i = 0; i < 6; ++i)
++    addOrRemoveClass(styleContext, i == color, "output-" + std::to_string(i));
++  m_button.set_tooltip_text("Workspace " + name() + " on " + output());
++
+   std::string windows;
+   // Optimization: The {windows} substitution string is only possible if the taskbar is disabled, no
+   // need to compute this if enableTaskbar() is true
+@@ -260,7 +269,8 @@
+   auto formatBefore = m_workspaceManager.formatBefore();
+   m_labelBefore.set_markup(fmt::format(fmt::runtime(formatBefore), fmt::arg("id", id()),
+                                        fmt::arg("name", name()), fmt::arg("icon", workspace_icon),
+-                                       fmt::arg("windows", windows)));
++                                       fmt::arg("windows", windows),
++                                       fmt::arg("output", Glib::Markup::escape_text(output()).raw())));
+   m_labelBefore.get_style_context()->add_class("workspace-label");
+ 
+   if (m_workspaceManager.enableTaskbar()) {

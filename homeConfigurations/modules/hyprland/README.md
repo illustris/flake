@@ -11,7 +11,7 @@ Bluetooth/removable-storage support, and Hyprland screen-sharing with KDE file
 dialogs. SDDM and the default session use `mkDefault` so hosts can choose another
 display manager. Home Manager owns Waybar and hypridle instead of system units.
 
-The home module provides Grid, Monocle, Tabs and Scrolling, positional focus,
+The home module provides Grid, Monocle and Scrolling, positional focus,
 workspace/window movement, clipboard history, screenshots, a launcher and
 session menu, notifications, portals, idle locking, and a per-output panel.
 Services follow `wayland-session@hyprland.desktop.target` so they stop at logout.
@@ -71,9 +71,9 @@ fingerprint, brightness dimming and battery bar in
 | Shortcut | Action |
 | --- | --- |
 | Super+Enter / D / Ctrl+E | Terminal / launcher / Dolphin |
-| Super+G / M / T / R | Grid / Monocle / Tabs / Scrolling |
+| Super+G / M / R | Grid / Monocle / Scrolling |
 | Super+Space | Cycle layouts |
-| Super+arrows | Positional focus; bounded column focus in Scrolling |
+| Super+arrows | Positional focus; tab order in Monocle; bounded column focus in Scrolling |
 | Super+J / K | Next / previous window or tab |
 | Super+Shift+J / K | Swap next / previous window |
 | Super+Shift+Enter / Ctrl+M | Promote / focus first window |
@@ -85,6 +85,7 @@ fingerprint, brightness dimming and battery bar in
 | Super+Ctrl+minus / equal | Lower / raise this workspace's Grid aspect ratio |
 | Super+Ctrl+Backspace | Reset Grid ratio to 1.20 |
 | Super+F / Ctrl+Space / Shift+Space | Fullscreen / toggle floating / return to tiling |
+| Super+H | Show full window titles for three seconds; press again to restart the timer |
 | Super+V / slash | Clipboard history / shortcut help |
 | Print / Shift+Print / Super+Shift+Print | Monitor / all outputs / region screenshot |
 | Super+Shift+L / Q | Lock / session menu |
@@ -99,7 +100,19 @@ Its per-workspace ratio is adjustable from 0.25 to 4.00 in 0.10 steps. Layouts,
 order, ratios and extension flags survive reloads in the same compositor session
 as plain data under `$XDG_RUNTIME_DIR`. Fresh sessions start in Grid.
 
-Waybar is patched for native Lua workspace clicks and socket reconnection.
+Monocle uses native window hiding and shows its ordered tabs in the bottom bar.
+The separate Tabs layout and Super+T binding are removed; saved Tabs workspaces
+migrate to Monocle on reload. Super+Left/Right and J/K follow the same order as
+the bar, including after swaps and promotion. Grid and Scrolling have no window
+list. The tab strip clips to the space remaining after the tray/status widgets;
+scroll it to reach overflow tabs, or use the keyboard to reveal the selected tab.
+Hover a tab for its full title. Super+H shows wrapped, click-through full-title
+headers on visible windows for three seconds; repeated presses restart the timer.
+
+Waybar is patched for native Lua workspace clicks and socket reconnection,
+output names/colors on tags, and a controller-backed Monocle tab module.
+Each tag names its output and keeps that output's color on every bar. A top
+stroke marks tags assigned to this bar's output; a bottom stroke marks active tags.
 The layout widget watches state changes with inotify, avoiding polling delay and
 Hyprland's incorrect Lua layout names. Each output displays its own workspace's
 layout and ratio. The idle inhibitor displays "Keep Awake: On/Off" by default.
@@ -115,7 +128,7 @@ env -u HYPRLAND_INSTANCE_SIGNATURE Hyprland --verify-config -c ~/.config/hypr/hy
 hyprctl configerrors
 ```
 
-For Lua IPC, use `hyprctl eval 'desktop.layout_set("tabbed")'`. Legacy dispatcher
+For Lua IPC, use `hyprctl eval 'desktop.layout_set("monocle")'`. Legacy dispatcher
 and `keyword` commands are incompatible with this configuration. The exported
 `hyprland-layouts` and `hyprland-keybinds` packages remain available for legacy
 configurations; this module does not install them.

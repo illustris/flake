@@ -1,8 +1,9 @@
 local geometry = require("geometry")
 local D = { modes = {}, orders = {}, ratios = {}, flags = {} }
 desktop = D
-local layouts = { grid = "lua:grid", monocle = "monocle", tabbed = "lua:tabbed", scrolling = "scrolling" }
-local cycle = { "grid", "monocle", "tabbed", "scrolling" }
+local layouts = { grid = "lua:grid", monocle = "monocle", scrolling = "scrolling" }
+local cycle = { "grid", "monocle", "scrolling" }
+local tiled
 local busy, queued = false, false
 local timers = {}
 local signature = (os.getenv("HYPRLAND_INSTANCE_SIGNATURE") or "verify"):gsub("[^%w_-]", "_")
@@ -39,6 +40,15 @@ local function save()
     local function panel(output, ws)
         if ws then
             f:write("panel ", output, " ", key(ws), " ", D.mode(ws), " ", string.format("%.2f", D.grid_ratio(ws)), "\n")
+            if D.mode(ws) == "monocle" then
+                for _, w in ipairs(tiled(ws)) do
+                    -- Hex keeps arbitrary UTF-8 titles, whitespace and newlines out of the protocol.
+                    local title = (w.title ~= "" and w.title or w.class) or "Window"
+                    local encoded = title:gsub(".", function(c) return string.format("%02x", c:byte()) end)
+                    local selected = not w.hidden and w.accepts_input ~= false
+                    f:write("tab ", output, " ", wid(w), " ", selected and "1" or "0", " ", encoded, "\n")
+                end
+            end
         end
     end
     panel("*", active_workspace())
@@ -54,6 +64,7 @@ local f = io.open(state_path, "r")
 if f then
     for line in f:lines() do
         local id, mode = line:match("^mode (%-?%d+) (%a+)$")
+        if mode == "tabbed" then mode = "monocle" end -- migrate the old separate Tabs layout
         if id and layouts[mode] then D.modes[id] = mode end
         local rid, ratio = line:match("^ratio (%-?%d+) ([%d.]+)$")
         ratio = tonumber(ratio)
@@ -94,7 +105,7 @@ local function ordered(windows, id, retain_missing)
     return result
 end
 
-local function tiled(ws)
+tiled = function(ws)
     return ordered(hl.get_windows({ workspace = ws, floating = false, mapped = true }), key(ws))
 end
 
@@ -125,48 +136,13 @@ local function dissolve(ws)
     end
 end
 
-local function tabs(ws)
-    local windows = tiled(ws)
-    if #windows == 0 then return end
-    local layout = windows[1].layout
-    -- Workspace rules apply on the next event-loop turn. Grouping while
-    -- Monocle still owns the targets strands its inactive input flags.
-    if layout and layout.name and layout.name ~= layouts.tabbed then
-        later(15, function() if D.mode(ws) == "tabbed" then tabs(ws) end end)
-        return
-    end
-    local active = hl.get_active_window()
-    local root, changed = windows[1], false
-    -- One native group supplies real tabs, hiding and input isolation.
-    if not root.group then
-        dispatch(hl.dsp.group.toggle({ window = root }))
-        changed = true
-    end
-    local group = root.group
-    if not group then return end
-    for i = 2, #windows do
-        local w = windows[i]
-        if w.group ~= group then
-            if w.group then dispatch(hl.dsp.group.toggle({ window = w })) end
-            group:add(w)
-            changed = true
-        end
-    end
-    -- Title/rule updates also reconcile tabs. Only restore focus when actual
-    -- regrouping displaced it; redundant focus dispatches warp the cursor.
-    if changed and active and active.mapped and active.workspace == ws and not active.floating
-        and hl.get_active_window() ~= active then
-        dispatch(hl.dsp.focus({ window = active }))
-    end
-end
-
 local function reconcile()
     if busy then return end
     busy = true
     for _, ws in ipairs(hl.get_workspaces()) do
         local mode = D.mode(ws)
         D.modes[key(ws)] = mode
-        if mode == "tabbed" then tabs(ws) else tiled(ws) end
+        tiled(ws)
     end
     save()
     busy = false
@@ -179,17 +155,16 @@ local function schedule()
 end
 
 function D.layout_set(mode)
-    assert(layouts[mode], "expected grid, monocle, tabbed, or scrolling")
+    assert(layouts[mode], "expected grid, monocle, or scrolling")
     local ws = active_workspace()
     if not ws then return end
-    local old, active = D.mode(ws), hl.get_active_window()
+    local active = hl.get_active_window()
     local order = D.orders[key(ws)]
     D.modes[key(ws)] = mode
     busy = true
-    if old == "tabbed" and mode ~= "tabbed" then dissolve(ws) end
+    dissolve(ws)
     D.orders[key(ws)] = order
     hl.workspace_rule({ workspace = selector(ws), layout = layouts[mode] })
-    if mode == "tabbed" then tabs(ws) end
     busy = false
     save()
     local function finish()
@@ -198,9 +173,8 @@ function D.layout_set(mode)
         local layout = windows[1] and windows[1].layout
         if layout and layout.name and layout.name ~= layouts[mode] then later(15, finish); return end
         busy = true
-        if mode == "tabbed" then tabs(ws) end
         if active and active.mapped and active.workspace == ws and active_workspace() == ws
-            and hl.get_active_window() ~= active then
+            and (hl.get_active_window() ~= active or active.accepts_input == false) then
             dispatch(hl.dsp.focus({ window = active }))
         end
         busy = false
@@ -258,6 +232,16 @@ function D.scratchpad()
     end
 end
 
+-- Bar clicks use stable IDs; the bar and keyboard both consume tiled() order.
+function D.focus_id(id)
+    for _, w in ipairs(hl.get_windows({ mapped = true, floating = false })) do
+        if wid(w) == tostring(id) then
+            dispatch(hl.dsp.focus({ window = w }))
+            return
+        end
+    end
+end
+
 function D.focus_step(delta)
     local ws = active_workspace()
     if not ws then return end
@@ -309,7 +293,7 @@ function D.direction(direction)
     local ws, active = active_workspace(), hl.get_active_window()
     if not ws then return end
     local mode = D.mode(ws)
-    if mode == "tabbed" or mode == "monocle" then
+    if mode == "monocle" then
         D.focus_step((direction == "left" or direction == "up") and -1 or 1)
         return
     end
@@ -352,8 +336,7 @@ function D.master(promote)
             order[1], order[i] = order[i], order[1]
             save()
             if D.mode(ws) == "grid" then dispatch(hl.dsp.layout("reorder"))
-            elseif D.mode(ws) == "tabbed" then busy = true; dissolve(ws); tabs(ws); busy = false
-            else dispatch(hl.dsp.window.swap({ target = windows[1], window = active })) end
+            elseif D.mode(ws) ~= "monocle" then dispatch(hl.dsp.window.swap({ target = windows[1], window = active })) end
             return
         end
     end
@@ -370,8 +353,7 @@ function D.swap_step(delta)
             order[i], order[j] = order[j], order[i]
             save()
             if D.mode(ws) == "grid" then dispatch(hl.dsp.layout("reorder"))
-            elseif D.mode(ws) == "tabbed" then busy = true; dissolve(ws); tabs(ws); busy = false
-            else dispatch(hl.dsp.window.swap({ target = windows[j], window = active })) end
+            elseif D.mode(ws) ~= "monocle" then dispatch(hl.dsp.window.swap({ target = windows[j], window = active })) end
             return
         end
     end
@@ -396,12 +378,6 @@ hl.layout.register("grid", {
     end,
     layout_msg = function(_, msg) return msg == "reorder" end,
 })
-hl.layout.register("tabbed", {
-    recalculate = function(ctx)
-        for _, target in ipairs(ctx.targets) do target:place(ctx.area) end
-    end,
-})
-
 function D.monitor_focus(selector, move)
     local monitor = hl.get_monitor(selector)
     if not monitor then return end
@@ -417,17 +393,18 @@ function D.wake()
 end
 
 local function restore()
+    for _, ws in ipairs(hl.get_workspaces()) do dissolve(ws) end
     for id, mode in pairs(D.modes) do
         hl.workspace_rule({ workspace = id, layout = layouts[mode] })
     end
     if D.on_restore then D.on_restore() end
     schedule()
 end
-for _, event in ipairs({ "window.open", "window.close", "window.move_to_workspace", "window.update_rules", "workspace.created" }) do
+for _, event in ipairs({ "window.open", "window.close", "window.move_to_workspace", "window.update_rules", "window.title", "window.active", "workspace.created", "workspace.removed", "workspace.move_to_monitor" }) do
     hl.on(event, schedule)
 end
 hl.on("workspace.active", function() save(); schedule() end)
-hl.on("workspace.special_active", save)
+hl.on("workspace.special_active", function() save(); schedule() end)
 hl.on("monitor.focused", save)
 hl.on("monitor.added", schedule)
 hl.on("monitor.removed", schedule)

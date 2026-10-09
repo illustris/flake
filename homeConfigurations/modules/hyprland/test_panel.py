@@ -9,6 +9,7 @@ import time
 import unittest
 
 import panel
+import headers
 
 
 class PanelTest(unittest.TestCase):
@@ -22,6 +23,17 @@ class PanelTest(unittest.TestCase):
             path.write_text("panel DP-1 1 grid nan\npanel DP-1 1 grid 999\npanel DP-1 1 garbage 1.60\n")
             self.assertEqual(panel.status(path, "DP-1")["text"], "Grid 1.20:1")
 
+    def test_title_headers_visibility_and_geometry(self):
+        monitor = dict(id=1, x=1920, y=-100, width=3840, height=2160, scale=2, transform=1)
+        client = dict(mapped=True, hidden=False, visible=True, acceptsInput=True, monitor=1,
+                      at=[1900, -80], size=[500, 600], title="Full <title>\nλ")
+        spec = headers.header_specs([monitor], [client])[0]
+        self.assertEqual((spec["left"], spec["top"], spec["right"]), (0, 20, 600))
+        self.assertEqual(spec["title"], client["title"])
+        for changes in ({"mapped": False}, {"hidden": True}, {"visible": False},
+                        {"acceptsInput": False}, {"monitor": 99}, {"at": [5000, 0]}):
+            self.assertEqual(headers.header_specs([monitor], [dict(client, **changes)]), [])
+
     def test_atomic_replacement_updates_without_polling(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "hypr-desktop-panel-test.state"
@@ -34,10 +46,10 @@ class PanelTest(unittest.TestCase):
                 self.assertTrue(select.select([process.stdout], [], [], 2)[0])
                 self.assertEqual(json.loads(process.stdout.readline())["text"], "Grid 1.60:1")
                 replacement = path.with_suffix(".tmp")
-                replacement.write_text("panel DP-1 1 grid 1.60\npanel HDMI-A-1 2 tabbed 1.60\n")
+                replacement.write_text("panel DP-1 1 grid 1.60\npanel HDMI-A-1 2 monocle 1.60\n")
                 replacement.replace(path)
                 self.assertFalse(select.select([process.stdout], [], [], 0.1)[0], "unrelated output must not refresh this label")
-                replacement.write_text("panel DP-1 3 grid 1.20\npanel HDMI-A-1 2 tabbed 1.60\n")
+                replacement.write_text("panel DP-1 3 grid 1.20\npanel HDMI-A-1 2 monocle 1.60\n")
                 start = time.monotonic()
                 replacement.replace(path)
                 self.assertTrue(select.select([process.stdout], [], [], 0.5)[0], "update waited for polling")

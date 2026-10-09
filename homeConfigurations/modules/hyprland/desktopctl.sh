@@ -1,5 +1,5 @@
 case "${1:-menu}" in
-  grid|monocle|tabbed|scrolling)
+  grid|monocle|scrolling)
     hyprctl eval "desktop.layout_set(\"$1\")" ;;
   cycle) hyprctl eval 'desktop.layout_cycle()' ;;
 @extraCases@
@@ -18,10 +18,10 @@ case "${1:-menu}" in
     choice=$(printf '%s\n' @menuEntries@ |
       wofi --dmenu --prompt 'Desktop') || exit 0
     case "$choice" in
-      Grid) desktopctl grid ;; Monocle) desktopctl monocle ;; Tabs) desktopctl tabbed ;; Scroll) desktopctl scrolling ;;
+      Grid) desktopctl grid ;; Monocle) desktopctl monocle ;; Scroll) desktopctl scrolling ;;
 @menuCases@
       Lock) uwsm app -- hyprlock ;; Suspend) systemctl suspend ;;
       'Log out') uwsm stop ;;
     esac ;;
-  *) echo 'Usage: desktopctl {grid|monocle|tabbed|scrolling|cycle|wake|sleep|status|help|menu}' >&2; exit 2 ;;
+  *) echo 'Usage: desktopctl {grid|monocle|scrolling|cycle|wake|sleep|status|help|menu}' >&2; exit 2 ;;
 esac

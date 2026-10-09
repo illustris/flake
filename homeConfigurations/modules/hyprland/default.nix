@@ -11,6 +11,24 @@ let
 	panel = pkgs.writeScriptBin "desktop-panel" (indent ''
 		#!${lib.getExe pkgs.python3}
 	'' + builtins.readFile ./panel.py);
+	headers = pkgs.stdenvNoCC.mkDerivation {
+		name = "desktop-window-headers";
+		dontUnpack = true;
+		nativeBuildInputs = [ pkgs.wrapGAppsHook3 ];
+		buildInputs = [ pkgs.gtk3 pkgs.gtk-layer-shell pkgs.gobject-introspection ];
+		installPhase = let
+			python = pkgs.python3.withPackages (p: [ p.pygobject3 p.pycairo ]);
+			script = pkgs.writeText "desktop-window-headers.py" (
+				"#!${python}/bin/python3\n"
+				+ lib.replaceStrings [ "@hyprctl@" ] [ "${pkgs.hyprland}/bin/hyprctl" ] (builtins.readFile ./headers.py)
+			);
+		in indent ''
+			mkdir -p $out/bin
+			cp ${script} $out/bin/desktop-window-headers
+			chmod +x $out/bin/desktop-window-headers
+		'';
+		meta.mainProgram = "desktop-window-headers";
+	};
 	# NVIDIA's EGL surface cleanup can spin after resume; keep the locker on Mesa.
 	lockPackage =
 		if cfg.softwareRendering then
@@ -55,7 +73,6 @@ let
 						[
 							"Grid"
 							"Monocle"
-							"Tabs"
 							"Scroll"
 						]
 						++ builtins.attrNames cfg.extraMenuEntries
@@ -105,6 +122,7 @@ let
 		clipboard = lib.getExe clipboard;
 		lock = lib.getExe lockPackage;
 		screenshot = lib.getExe screenshot;
+		headers = lib.getExe headers;
 		menu = "${lib.getExe ctl} menu";
 		help = "${lib.getExe ctl} help";
 		volume = "${pkgs.wireplumber}/bin/wpctl";
@@ -415,7 +433,12 @@ in
 				patches = (old.patches or [ ]) ++ [
 					./waybar-lua.patch
 					./waybar-ipc.patch
+					./waybar-desktop.patch
 				];
+				postPatch = (old.postPatch or "") + ''
+					cp ${./waybar-tabs.hpp} include/modules/hyprland/desktop_tabs.hpp
+					cp ${./waybar-tabs.cpp} src/modules/hyprland/desktop_tabs.cpp
+				'';
 			});
 			systemd = {
 				enable = true;
@@ -426,14 +449,16 @@ in
 				position = "bottom";
 				height = 32;
 				spacing = 6;
+				fixed-center = false;
+				expand-center = true;
 				modules-left = [
 					"custom/menu"
 					"hyprland/workspaces"
 					"custom/layout"
-					"wlr/taskbar"
 				];
-				modules-center = [ "clock" ];
+				modules-center = [ "hyprland/desktop-tabs" ];
 				modules-right = [
+					"clock"
 					"mpris"
 					"idle_inhibitor"
 					"pulseaudio"
@@ -449,6 +474,7 @@ in
 				};
 				"hyprland/workspaces" = {
 					all-outputs = true;
+					format = "{name} <small>{output}</small>";
 					sort-by-number = true;
 					move-to-monitor = true;
 				};
@@ -459,14 +485,7 @@ in
 					on-click = "${lib.getExe ctl} cycle";
 					on-click-right = tools.menu;
 				};
-				"wlr/taskbar" = {
-					format = "{icon} {title}";
-					icon-size = 18;
-					max-length = 28;
-					on-click = "activate";
-					on-click-middle = "close";
-					tooltip-format = "{app_id}: {title}";
-				};
+				"hyprland/desktop-tabs" = { expand = true; };
 				clock = {
 					format = "{:%a %d %b  %H:%M}";
 					tooltip-format = "<tt>{calendar}</tt>";
@@ -511,13 +530,20 @@ in
 				* { font-family: "Noto Sans"; font-size: 12px; border: none; border-radius: 0; min-height: 0; }
 				window#waybar { background: #232629; color: #eff0f1; border-top: 1px solid #4d5257; }
 				#workspaces button { padding: 0 10px; color: #bdc3c7; background: transparent; }
-				#workspaces button.active { color: #00ccff; background: #31363b; border-bottom: 2px solid #00ccff; }
+				#workspaces button.active { background: #31363b; border-bottom: 2px solid currentColor; }
+				#workspaces button.output-0 { color: #00ccff; }
+				#workspaces button.output-1 { color: #f6b26b; }
+				#workspaces button.output-2 { color: #a6e3a1; }
+				#workspaces button.output-3 { color: #cba6f7; }
+				#workspaces button.output-4 { color: #f38ba8; }
+				#workspaces button.output-5 { color: #f9e2af; }
+				#workspaces button.hosting-monitor { border-top: 2px solid currentColor; }
 				#workspaces button.urgent { background: #da4453; }
 				#custom-menu, #custom-layout, #clock, #pulseaudio, #network, #bluetooth, #idle_inhibitor, #mpris, #tray { padding: 0 8px; }
 				#custom-layout { color: #00ccff; }
 				#idle_inhibitor.activated { color: #00ccff; }
-				#taskbar button { padding: 0 8px; color: #bdc3c7; }
-				#taskbar button.active { background: #31363b; color: #eff0f1; }
+				#desktop-tabs button { padding: 0 8px; color: #bdc3c7; background: transparent; }
+				#desktop-tabs button.active { background: #31363b; color: #eff0f1; border-bottom: 2px solid #00ccff; }
 				tooltip { background: #31363b; color: #eff0f1; }
 			'');
 		};

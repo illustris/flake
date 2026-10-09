@@ -55,7 +55,7 @@ local function workspace(id)
 end
 local one, two = workspace(1), workspace(2)
 local function window(id, ws, floating)
-    local w = { stable_id = id, workspace = ws, floating = floating or false, mapped = true }
+    local w = { stable_id = id, workspace = ws, floating = floating or false, mapped = true, title = "Window " .. id }
     windows[#windows + 1] = w
     return w
 end
@@ -105,7 +105,7 @@ hl = {
     get_windows = function(filter)
         local result = {}
         for _, w in ipairs(windows) do
-            if w.workspace == filter.workspace and (filter.floating == nil or w.floating == filter.floating) and w.mapped then
+            if (not filter.workspace or w.workspace == filter.workspace) and (filter.floating == nil or w.floating == filter.floating) and w.mapped then
                 result[#result + 1] = w
             end
         end
@@ -156,50 +156,52 @@ local function advance(ms)
     clock = until_time
 end
 local D = require("desktop")
-D.layout_set("tabbed")
-assert(a.group and a.group == b.group and a.group == c.group and not dialog.group)
-assert(active == b and #a.group.windows == 3)
+D.layout_set("monocle")
+assert(not a.group and not b.group and not c.group and not dialog.group)
+assert(active == b and not providers.tabbed, "Monocle must use native visibility without native groups")
 flush()
-assert(focus_calls == 0, "grouping and layout completion must leave correct focus alone")
-local focus_before, groups_before = focus_calls, group_changes
-for _ = 1, 30 do
-    events["window.update_rules"](); advance(30)
-end
-assert(active == b and focus_calls == focus_before, "title/rule refreshes must not refocus the selected tab")
-assert(group_changes == groups_before, "unchanged tabs must not be regrouped on refresh")
-D.layout_set("tabbed"); flush()
-assert(focus_calls == focus_before, "layout completion must not refocus an already active window")
-D.focus_step(1)
-assert(active == c and focus_calls == focus_before + 1, "keyboard navigation must still dispatch focus")
-active, displace_on_group = b, true
+assert(focus_calls == 0, "layout completion must leave correct focus alone")
+local focus_before = focus_calls
+for _ = 1, 30 do events["window.update_rules"](); advance(30) end
+assert(active == b and focus_calls == focus_before, "title/rule refreshes must not refocus")
+D.direction("right"); assert(active == c)
+D.direction("right"); assert(active == a, "Monocle must wrap in tab order")
+D.direction("left"); assert(active == c)
+D.swap_step(-1)
+assert(table.concat(D.orders["1"], ",") == "1,3,2")
+D.direction("right"); assert(active == b, "keyboard must follow reordered tabs")
+D.master(true)
+assert(table.concat(D.orders["1"], ",") == "2,3,1")
+D.direction("right"); assert(active == c, "promotion must update keyboard order")
+D.focus_id(1); assert(active == a, "bar clicks focus stable IDs")
+D.focus_id(999); assert(active == a, "stale bar clicks are harmless")
 local new = window(5, one)
 events["window.open"](); flush()
-assert(new.group == a.group and #a.group.windows == 4, "new window must join workspace tabs")
-assert(active == b and focus_calls == focus_before + 2, "regrouping must restore displaced focus exactly once")
-displace_on_group = false
+assert(table.concat(D.orders["1"], ",") == "2,3,1,5")
 local closing = window(6, one)
 events["window.open"](); flush()
-focus_before, groups_before = focus_calls, group_changes
-closing.group:remove(closing); closing.mapped = false
+closing.mapped = false
+focus_before = focus_calls
 events["window.close"](); flush()
-assert(active == b and focus_calls == focus_before and group_changes == groups_before,
-    "closing an inactive tab must preserve focus and the remaining group")
+assert(active == a and focus_calls == focus_before)
 active = dialog
 events["window.update_rules"](); flush()
-assert(active == dialog and focus_calls == focus_before, "refresh must preserve a focused floating dialog")
+assert(active == dialog and focus_calls == focus_before, "refresh must preserve floating focus")
 active = b; D.move("2"); flush()
-assert(b.workspace == two and not b.group)
-assert(a.workspace == one and c.workspace == one and new.workspace == one, "move must affect only selected tab")
+assert(b.workspace == two and a.workspace == one and c.workspace == one and new.workspace == one)
 active = c; D.float("enable"); flush()
-assert(c.floating and not c.group and a.group == new.group)
+assert(c.floating and table.concat(D.orders["1"], ",") == "1,5")
 D.float("disable"); flush()
-assert(not c.floating and c.group == a.group, "sinking must rejoin tabs")
-D.float("disable"); flush()
-assert(not c.floating and c.group == a.group, "sinking a tiled tab must be a no-op")
-D.wake(); assert(dpms, "wake must turn outputs on")
+assert(not c.floating and table.concat(D.orders["1"], ",") == "1,5,3")
+D.wake(); assert(dpms)
 D.wake(); assert(dpms, "repeated wake must leave outputs on")
 D.layout_set("monocle")
-assert(not a.group and not c.group and not new.group, "leaving tabs must dissolve group")
+local before_hidden_restore = focus_calls
+c.accepts_input = false
+advance(20)
+assert(active == c and focus_calls == before_hidden_restore + 1,
+    "layout completion must reveal a selected window whose native input is still blocked")
+c.accepts_input = true
 D.flags.custom_flag = true
 D.grid_ratio_set(0.8)
 assert(D.grid_ratio(one) == 0.8 and D.grid_ratio(two) == 1.2, "ratio changes must be per workspace")
@@ -213,7 +215,7 @@ assert(D.mode(one) == "monocle" and D.mode(two) == "scrolling", "reload must pre
 assert(D.grid_ratio(one) == 0.8 and D.grid_ratio(two) == 2.4, "reload must preserve ratios")
 assert(D.flags.custom_flag, "reload must preserve host extension flags")
 active = a; D.layout_cycle()
-assert(D.mode(one) == "tabbed")
+assert(D.mode(one) == "scrolling", "cycle must omit old Tabs mode")
 D.grid_ratio_adjust(-100); assert(D.grid_ratio() == 0.25)
 D.grid_ratio_adjust(100); assert(D.grid_ratio() == 4)
 D.grid_ratio_set(geometry.default_ratio)
@@ -262,18 +264,10 @@ D.direction("down"); assert(active == cells[2], "scrolling must stop at last row
 active = nil
 D.direction("left"); assert(active == cells[5], "scrolling must recover focus at the first column")
 
--- Rule application is deferred: tabs must wait until Monocle releases its
--- targets, otherwise grouping strands inactive input flags on the old windows.
+-- Switching away from Monocle preserves order during deferred target transfer.
 for _, w in ipairs(cells) do w.layout = { name = "monocle" } end
-D.layout_set("tabbed")
-assert(not cells[1].group, "must not group targets while Monocle still owns them")
-advance(20)
-assert(not cells[1].group, "must wait for actual layout activation, not a fixed delay")
-for _, w in ipairs(cells) do w.layout = { name = "lua:tabbed" } end
-advance(20)
-assert(cells[1].group and cells[6].group == cells[1].group, "tabs must group once the new layout owns the targets")
+D.layout_set("monocle")
 D.layout_set("grid")
-assert(not cells[1].group and not cells[6].group)
 local saved_order = table.concat(D.orders["4"], ",")
 local area = { x = 0, y = 1680, w = 3840, h = 2128 }
 providers.grid.recalculate({ area = area, targets = { { window = cells[5], place = function() end } } })
@@ -308,7 +302,42 @@ events["config.reloaded"](); advance(100)
 assert(restore_calls == 1, "reload must restore layouts and call the host extension")
 D.on_wake, D.on_restore, monitors = nil, nil, {}
 
-print("PASS: refresh focus preservation, displaced focus restoration, shared Grid/Scrolling navigation, boundaries, focus recovery, deferred tabs, ratio, order, moves, monitors, host hooks, idle wake and reload state")
+-- The per-output tab snapshot and focus navigation share the controller order.
+monitors = { { name = "DP-1", active_workspace = one }, { name = "HDMI-A-1", active_workspace = two } }
+active = a; D.layout_set("monocle")
+for _, w in ipairs({a, c, new}) do w.accepts_input = w == a end
+a.title = "Full <title>\twith\nUTF-8: λ"
+D.save()
+local state_path = os.getenv("XDG_RUNTIME_DIR") .. "/hypr-desktop-" .. os.getenv("HYPRLAND_INSTANCE_SIGNATURE") .. ".state"
+local state = assert(io.open(state_path)):read("*a")
+local tab_order, selected = {}, {}
+for output, id, marked, title in state:gmatch("tab (%S+) (%d+) ([01]) ([%x]+)") do
+    if output == "DP-1" then
+        tab_order[#tab_order + 1] = id
+        if marked == "1" then selected[#selected + 1] = id end
+        if id == "1" then
+            local decoded = title:gsub("..", function(hex) return string.char(tonumber(hex, 16)) end)
+            assert(decoded == a.title, "full arbitrary titles must roundtrip without injecting state rows")
+        end
+    end
+    assert(output ~= "HDMI-A-1", "non-Monocle outputs must have no window list")
+end
+assert(table.concat(tab_order, ",") == table.concat(D.orders["1"], ","), "panel and keyboard order must match")
+assert(table.concat(selected) == "1", "only the visible Monocle window is selected")
+
+-- Saved Tabs sessions migrate to Monocle and dissolve legacy groups on reload.
+local f = assert(io.open(state_path, "a")); f:write("mode 1 tabbed\n"); f:close()
+group(a):add(c)
+package.loaded.desktop = nil; events = {}; D = require("desktop")
+assert(D.mode(one) == "monocle")
+events["config.reloaded"](); advance(100)
+assert(not a.group and not c.group and rules["1"] == "monocle")
+assert(not pcall(D.layout_set, "tabbed"), "old mode is migration-only")
+D.layout_set("grid"); D.layout_cycle(); assert(D.mode() == "monocle")
+D.layout_cycle(); assert(D.mode() == "scrolling")
+D.layout_cycle(); assert(D.mode() == "grid")
+monitors = {}
+print("PASS: Monocle tab order, clicks, snapshots, migration, Grid/Scrolling navigation, moves, ratios, monitor hooks and reload")
 return setmetatable({ desktop = D, events = events, one = one, two = two, advance = advance,
     clock = function() return clock end }, {
     __index = function(_, field) if field == "monitors" then return monitors end end,
