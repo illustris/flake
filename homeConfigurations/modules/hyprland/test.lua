@@ -35,12 +35,12 @@ assert(not geometry.neighbor(unequal, 1, "up"), "top of a short column must not 
 assert(not geometry.neighbor(unequal, 4, "up"), "top of a tall column must not jump diagonally")
 
 local windows, workspaces, events, pending, active, rules = {}, {}, {}, {}, nil, {}
-local providers = {}
+local providers, rule_order = {}, {}
 local monitors, clock, current_workspace, focused_monitor = {}, 0, nil, nil
 local dpms = false
 local focus_calls, group_changes, displace_on_group = 0, 0, false
 local function workspace(id)
-    local ws = { id = id, name = tostring(id), special = false }
+    local ws = { id = id, name = tostring(id), config_name = tostring(id), special = false }
     function ws:get_groups()
         local result, seen = {}, {}
         for _, w in ipairs(windows) do
@@ -96,7 +96,10 @@ hl = {
     end,
     exec_cmd = function() end,
     monitor = function() end,
-    workspace_rule = function(rule) rules[rule.workspace] = rule.layout end,
+    workspace_rule = function(rule)
+        if not rules[rule.workspace] then rule_order[#rule_order + 1] = rule.workspace end
+        rules[rule.workspace] = rule.layout
+    end,
     get_active_workspace = function(m) return m and m.active_workspace or active and active.workspace or current_workspace or one end,
     get_active_special_workspace = function(m) return m and m.active_special_workspace end,
     get_active_window = function() return active end,
@@ -336,8 +339,47 @@ assert(not pcall(D.layout_set, "tabbed"), "old mode is migration-only")
 D.layout_set("grid"); D.layout_cycle(); assert(D.mode() == "monocle")
 D.layout_cycle(); assert(D.mode() == "scrolling")
 D.layout_cycle(); assert(D.mode() == "grid")
+
+-- Scratchpad IDs are internal IDs, not workspace rule selectors. Hyprland
+-- interprets negative numeric rule selectors as relative offsets, clamped to 1.
+local function applied_layout(ws)
+    local layout = "lua:grid"
+    for _, target in ipairs(rule_order) do
+        local id = tonumber(target)
+        if id and id < 0 then id = math.max(hl.get_active_workspace().id + id, 1) end
+        if (id and id == ws.id) or target == ws.config_name then layout = rules[target] end
+    end
+    return layout
+end
+local scratch = workspace(-98)
+scratch.name, scratch.config_name, scratch.special = "special:magic", "special:magic", true
+local scratch_window = window(90, scratch)
+local named = workspace(-1337)
+named.name, named.config_name = "notes", "name:notes"
+D.modes["1"], D.modes["-98"], D.modes["-1337"] = "monocle", "grid", "scrolling"
+D.modes["-99"], D.modes["7"] = "grid", "scrolling" -- closed scratchpad and empty numbered tag
+active = a
+events["config.reloaded"](); advance(100)
+assert(applied_layout(one) == "monocle", "scratchpad restore must not override tag 1's layout")
+assert(rules["special:magic"] == "lua:grid" and rules["name:notes"] == "scrolling",
+    "restore must use canonical selectors for special and named workspaces")
+assert(not rules["-98"] and not rules["-99"] and not rules["-1337"],
+    "restore must never emit internal negative IDs as relative layout rules")
+assert(rules["7"] == "scrolling", "empty numbered tags must retain their saved layouts")
+for _, mode in ipairs({ "grid", "scrolling", "monocle" }) do
+    D.layout_set(mode); advance(20)
+    assert(applied_layout(one) == (mode == "grid" and "lua:grid" or mode),
+        "tag 1 must remain switchable after restoring scratchpads")
+end
+active = scratch_window
+D.layout_set("monocle"); advance(20)
+events["config.reloaded"](); advance(100)
+assert(applied_layout(scratch) == "monocle" and applied_layout(one) == "monocle",
+    "scratchpad Monocle must survive reload without changing tag 1")
+active = a
+D.layout_set("grid"); advance(20)
 monitors = {}
-print("PASS: Monocle tab order, clicks, snapshots, migration, Grid/Scrolling navigation, moves, ratios, monitor hooks and reload")
+print("PASS: Monocle tab order, clicks, snapshots, migration, Grid/Scrolling navigation, moves, ratios, monitor hooks and scratchpad reload")
 return setmetatable({ desktop = D, events = events, one = one, two = two, advance = advance,
     clock = function() return clock end }, {
     __index = function(_, field) if field == "monitors" then return monitors end end,

@@ -26,7 +26,7 @@ local function dispatch(action) return hl.dispatch(action) end
 local function active_workspace()
     return hl.get_active_special_workspace() or hl.get_active_workspace()
 end
-local function selector(ws) return ws.special and ("special:" .. ws.name:gsub("^special:", "")) or tostring(ws.id) end
+local function selector(ws) return ws.config_name end
 
 local function save()
     local f = io.open(state_path .. ".tmp", "w")
@@ -393,9 +393,18 @@ function D.wake()
 end
 
 local function restore()
-    for _, ws in ipairs(hl.get_workspaces()) do dissolve(ws) end
+    local workspaces = {}
+    for _, ws in ipairs(hl.get_workspaces()) do
+        dissolve(ws)
+        workspaces[key(ws)] = ws
+    end
     for id, mode in pairs(D.modes) do
-        hl.workspace_rule({ workspace = id, layout = layouts[mode] })
+        -- Negative IDs identify special/named workspaces internally, but rule
+        -- selectors parse them as relative offsets and can match tag 1 instead.
+        -- Closed numbered tags still need rules for when they are recreated.
+        local ws = workspaces[id]
+        local target = ws and selector(ws) or (tonumber(id) > 0 and id)
+        if target then hl.workspace_rule({ workspace = target, layout = layouts[mode] }) end
     end
     if D.on_restore then D.on_restore() end
     schedule()
