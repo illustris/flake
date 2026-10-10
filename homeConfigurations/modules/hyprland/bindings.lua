@@ -18,11 +18,7 @@ hl.config({
         explicit_column_widths = "0.333, 0.5, 0.667, 1.0" },
     group = { auto_group = false, groupbar = { enabled = false } },
 })
-for name, value in pairs({ GDK_SCALE = "1", GDK_DPI_SCALE = "1", QT_SCALE_FACTOR = "1",
-    QT_AUTO_SCREEN_SCALE_FACTOR = "0", QT_QPA_PLATFORM = "wayland;xcb", QT_QPA_PLATFORMTHEME = "kde",
-    NIXOS_OZONE_WL = "1", XCURSOR_SIZE = "24", HYPRCURSOR_SIZE = "24", GTK_THEME = "Breeze-Dark" }) do
-    hl.env(name, value)
-end
+-- Also generated as uwsm/env-hyprland so services inherit the same settings.
 for name, value in pairs(desktop_settings.environment) do hl.env(name, value) end
 hl.config(desktop_settings.settings)
 

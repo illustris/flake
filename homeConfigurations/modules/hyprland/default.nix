@@ -8,6 +8,20 @@ let
 	inherit (import ../../../lib { inherit lib; }) indent;
 	cfg = config.illustris.hyprland;
 	target = "wayland-session@hyprland.desktop.target";
+	# UWSM starts applications through systemd, outside the compositor's own
+	# environment. Keep its startup environment and Lua reloads in agreement.
+	sessionEnvironment = {
+		GDK_SCALE = "1";
+		GDK_DPI_SCALE = "1";
+		QT_SCALE_FACTOR = "1";
+		QT_AUTO_SCREEN_SCALE_FACTOR = "0";
+		QT_QPA_PLATFORM = "wayland;xcb";
+		QT_QPA_PLATFORMTHEME = config.home.sessionVariables.QT_QPA_PLATFORMTHEME or "kde";
+		NIXOS_OZONE_WL = "1";
+		XCURSOR_SIZE = "24";
+		HYPRCURSOR_SIZE = "24";
+		GTK_THEME = config.home.sessionVariables.GTK_THEME;
+	} // cfg.environment;
 	panel = pkgs.writeScriptBin "desktop-panel" (indent ''
 		#!${lib.getExe pkgs.python3}
 	'' + builtins.readFile ./panel.py);
@@ -206,6 +220,28 @@ in
 				message = "The shared Hyprland module requires Hyprland 0.56 or newer for native Lua layouts.";
 			}
 		];
+		# Login shells (including nix run/nix-shell) and agents that start before
+		# Hyprland need the Qt platform theme too. This also installs its plugins
+		# and exports them through Home Manager's environment.d configuration.
+		qt = {
+			enable = lib.mkDefault true;
+			platformTheme.name = lib.mkDefault "kde";
+		};
+		home.sessionVariables.GTK_THEME = lib.mkDefault "Breeze-Dark";
+		systemd.user.sessionVariables.GTK_THEME = config.home.sessionVariables.GTK_THEME;
+		xdg.configFile."uwsm/env-hyprland".text = lib.concatStringsSep "\n" (
+			lib.mapAttrsToList (name: value: "export ${name}=${lib.escapeShellArg value}") sessionEnvironment
+		) + "\n";
+		# A tmux server may predate the graphical session. New panes otherwise
+		# inherit its stale theme even when their attaching terminal has the
+		# right environment. Retain tmux's defaults and add the desktop variables.
+		xdg.configFile."tmux/tmux.conf".text = ''
+			set-option -ag update-environment " ${lib.concatStringsSep " " (
+				lib.unique (builtins.attrNames sessionEnvironment ++ [
+					"QT_PLUGIN_PATH" "QML2_IMPORT_PATH" "QT_STYLE_OVERRIDE"
+				])
+			)}"
+		'';
 		home.packages = with pkgs; [
 			ctl
 			screenshot
@@ -224,7 +260,10 @@ in
 			udiskie
 			kdePackages.kdeconnect-kde
 			kdePackages.breeze
+			kdePackages.breeze.qt5
+			kdePackages.breeze-gtk
 			kdePackages.breeze-icons
+			kdePackages.plasma-integration.qt5
 			kdePackages.qtwayland
 			xdg-utils
 		];
@@ -254,7 +293,7 @@ in
 					lib.generators.toLua { } {
 						inherit (cfg) monitorKeys;
 						settings = cfg.compositorSettings;
-						environment = cfg.environment;
+						environment = sessionEnvironment;
 					}
 				}"
 				(indent ''

@@ -17,6 +17,17 @@ session menu, notifications, portals, idle locking, and a per-output panel.
 Services follow `wayland-session@hyprland.desktop.target` so they stop at logout.
 No display EDIDs, NVIDIA settings, or host wallpaper paths are in these modules.
 
+Qt applications use the existing KDE palette through Home Manager's Qt module,
+which installs the integration and sets the environment for login shells and
+user services, including GPG pinentry. GTK uses Breeze Dark. Session environment
+defaults and `illustris.hyprland.environment` overrides are also written to
+`uwsm/env-hyprland`, so UWSM applications inherit them at session startup instead
+of relying on variables set only inside the compositor. Restart applications
+after changing their theme environment; existing processes retain their old one.
+The tmux configuration extends `update-environment` with these variables and
+the Qt plugin paths, so attaching from a graphical terminal also updates new
+panes in a server that was started before the graphical session.
+
 ## Use on another host
 
 ```nix
