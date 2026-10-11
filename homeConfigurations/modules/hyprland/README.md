@@ -86,6 +86,7 @@ fingerprint, brightness dimming and battery bar in
 | Super+Space | Cycle layouts |
 | Super+arrows | Positional focus; tab order in Monocle; bounded column focus in Scrolling |
 | Super+J / K | Next / previous window or tab |
+| Super+Tab / Shift+Tab | Next / previous window or tab |
 | Super+Shift+J / K | Swap next / previous window |
 | Super+Shift+Enter / Ctrl+M | Promote / focus first window |
 | Super+1..9 / Shift+1..9 | Select workspace / move selected window |
@@ -113,9 +114,9 @@ as plain data under `$XDG_RUNTIME_DIR`. Fresh sessions start in Grid.
 
 Monocle uses native window hiding and shows its ordered tabs in the bottom bar.
 The separate Tabs layout and Super+T binding are removed; saved Tabs workspaces
-migrate to Monocle on reload. Super+Left/Right and J/K follow the same order as
-the bar, including after swaps and promotion. Grid and Scrolling have no window
-list. The tab strip clips to the space remaining after the tray/status widgets;
+migrate to Monocle on reload. Super+Left/Right, Super+J/K, and
+Super+Tab/Shift+Tab follow the same order as the bar, including after swaps and
+promotion. Grid and Scrolling have no window list. The tab strip clips to the space remaining after the tray/status widgets;
 scroll it to reach overflow tabs, or use the keyboard to reveal the selected tab.
 Hover a tab for its full title. Super+H shows wrapped, click-through full-title
 headers on visible windows for three seconds; repeated presses restart the timer.

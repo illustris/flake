@@ -47,6 +47,8 @@ bind("SUPER + SHIFT + space", "Return window to tiling", function() D.float("dis
 bind("SUPER + CTRL + space", "Toggle floating", function() D.float("toggle") end)
 bind("SUPER + J", "Focus next window/tab", function() D.focus_step(1) end, { repeating = true })
 bind("SUPER + K", "Focus previous window/tab", function() D.focus_step(-1) end, { repeating = true })
+bind("SUPER + Tab", "Focus next window/tab", function() D.focus_step(1) end, { repeating = true })
+bind("SUPER + SHIFT + Tab", "Focus previous window/tab", function() D.focus_step(-1) end, { repeating = true })
 bind("SUPER + SHIFT + J", "Swap next window", function() D.swap_step(1) end)
 bind("SUPER + SHIFT + K", "Swap previous window", function() D.swap_step(-1) end)
 bind("SUPER + SHIFT + Return", "Promote to first window", function() D.master(true) end)
