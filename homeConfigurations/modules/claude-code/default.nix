@@ -10,7 +10,7 @@
 			lib.listToAttrs
 		];
 	in ({
-		enable = true;
+		enable = false;
 		settings = {
 			includeCoAuthoredBy = false;
 			hooks.Notification = [{
