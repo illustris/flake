@@ -41,6 +41,7 @@
 		checks = genAttrs [ "x86_64-linux" "aarch64-linux" ] (system: let
 			pkgs = pkgsForSystem system;
 		in {
+			hyprlock-shm = pkgs.hyprlock.tests.shmPool;
 			hyprland = pkgs.runCommand "hyprland-controller-tests" {
 				nativeBuildInputs = [ pkgs.lua pkgs.python3 ];
 			} (indent ''

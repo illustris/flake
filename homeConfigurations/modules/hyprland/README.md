@@ -17,6 +17,13 @@ session menu, notifications, portals, idle locking, and a per-output panel.
 Services follow `wayland-session@hyprland.desktop.target` so they stop at logout.
 No display EDIDs, NVIDIA settings, or host wallpaper paths are in these modules.
 
+The shared `pkgs` overlay patches Hyprlock's SHM capture allocation to unlink
+temporary files immediately and reserve their backing storage before capture.
+This prevents captures accumulating in `$XDG_RUNTIME_DIR` and rejects a full
+filesystem before Hyprland writes pixels into the buffer. Both the normal locker
+and the NVIDIA software-rendering wrapper use this package. Run
+`nix build .#checks.x86_64-linux.hyprlock-shm` for its allocation regression test.
+
 Qt applications use the existing KDE palette through Home Manager's Qt module,
 which installs the integration and sets the environment for login shells and
 user services, including GPG pinentry. GTK uses Breeze Dark. Session environment

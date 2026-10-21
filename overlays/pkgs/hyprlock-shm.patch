@@ -1,0 +1,57 @@
+--- a/src/helpers/MiscFunctions.cpp
++++ b/src/helpers/MiscFunctions.cpp
+@@ -1,10 +1,12 @@
+ #include "MiscFunctions.hpp"
+ #include "Log.hpp"
+
+ #include <algorithm>
+ #include <cmath>
++#include <cerrno>
++#include <cstring>
+ #include <fcntl.h>
+ #include <filesystem>
+ #include <hyprutils/os/Process.hpp>
+ #include <hyprutils/string/String.hpp>
+ #include <pwd.h>
+@@ -118,10 +120,18 @@
+     const auto FD = mkstemp((char*)name.c_str());
+     if (FD < 0) {
+         Log::logger->log(Log::CRIT, "createPoolFile: fd < 0");
+         return -1;
+     }
++    // Only descriptors and mappings should keep this buffer alive, including
++    // when the locker crashes or exits before receiving the captured frame.
++    if (unlink(name.c_str()) < 0) {
++        Log::logger->log(Log::CRIT, "createPoolFile: unlink failed: {}", strerror(errno));
++        close(FD);
++        return -1;
++    }
++
+     // set cloexec
+     long flags = fcntl(FD, F_GETFD);
+     if (flags == -1) {
+         close(FD);
+         return -1;
+@@ -131,13 +141,20 @@
+         close(FD);
+         Log::logger->log(Log::CRIT, "createPoolFile: fcntl < 0");
+         return -1;
+     }
+
+-    if (ftruncate(FD, size) < 0) {
++    // ftruncate only sets the logical size. Reserve backing storage now so
++    // a full runtime tmpfs cannot SIGBUS the compositor during its pixel copy.
++    int allocationError;
++    do {
++        allocationError = posix_fallocate(FD, 0, size);
++    } while (allocationError == EINTR);
++
++    if (allocationError != 0) {
++        Log::logger->log(Log::CRIT, "createPoolFile: allocation failed: {}", strerror(allocationError));
+         close(FD);
+-        Log::logger->log(Log::CRIT, "createPoolFile: ftruncate < 0");
+         return -1;
+     }
+
+     return FD;
+ }
