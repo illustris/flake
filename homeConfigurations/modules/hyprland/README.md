@@ -160,4 +160,7 @@ and `keyword` commands are incompatible with this configuration. The exported
 `hyprland-layouts` and `hyprland-keybinds` packages remain available for legacy
 configurations; this module does not install them.
 
+The obsolete `hyprscrolling` package is no longer exported: nixpkgs removed its
+upstream plugin. Use Hyprland's native Scrolling layout instead.
+
 `COPYING.grid` retains the upstream BSD license for the GridVariants port.
