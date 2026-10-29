@@ -232,6 +232,12 @@ in
 		xdg.configFile."uwsm/env-hyprland".text = lib.concatStringsSep "\n" (
 			lib.mapAttrsToList (name: value: "export ${name}=${lib.escapeShellArg value}") sessionEnvironment
 		) + "\n";
+		# Chromium restores its preview capture for sharing instead of prompting twice.
+		xdg.configFile."hypr/xdph.conf".text = indent ''
+			screencopy {
+				allow_token_by_default = true
+			}
+		'';
 		# A tmux server may predate the graphical session. New panes otherwise
 		# inherit its stale theme even when their attaching terminal has the
 		# right environment. Retain tmux's defaults and add the desktop variables.

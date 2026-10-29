@@ -17,6 +17,14 @@ session menu, notifications, portals, idle locking, and a per-output panel.
 Services follow `wayland-session@hyprland.desktop.target` so they stop at logout.
 No display EDIDs, NVIDIA settings, or host wallpaper paths are in these modules.
 
+The home module sets `screencopy.allow_token_by_default` in `hypr/xdph.conf`,
+checking "Allow restore token" in the native screen-sharing picker by default.
+This lets Chromium reuse its preview selection for the actual share without a
+second native picker. Portal clients can restore the selected source with the
+token; Chromium's sharing confirmation remains. Uncheck the box for a capture
+that should not be restorable. Apply with a rebuild and a new login, or restart
+`xdg-desktop-portal-hyprland.service` in the user session when no shares are active.
+
 The shared `pkgs` overlay patches Hyprlock's SHM capture allocation to unlink
 temporary files immediately and reserve their backing storage before capture.
 This prevents captures accumulating in `$XDG_RUNTIME_DIR` and rejects a full
